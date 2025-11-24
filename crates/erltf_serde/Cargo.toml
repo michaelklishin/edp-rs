@@ -1,0 +1,19 @@
+[package]
+name = "erltf_serde"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Serde integration for Erlang External Term Format"
+keywords = ["erlang", "serde", "serialization", "etf"]
+categories = ["encoding"]
+
+[dependencies]
+erltf = { path = "../erltf" }
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }

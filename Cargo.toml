@@ -1,0 +1,50 @@
+[workspace]
+members = ["crates/erltf", "crates/erltf_serde", "crates/edp_client", "crates/edp_node", "crates/examples"]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+authors = ["Michael S. Klishin"]
+repository = "https://github.com/michaelklishin/edp-rs"
+
+[workspace.dependencies]
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Error handling
+thiserror = "2.0"
+
+# Parsing and data structures
+bytes = "1.9"
+nom = "7.1"
+
+# Async runtime
+tokio = { version = "1.42", default-features = false, features = ["full"] }
+
+# Cryptography
+md-5 = "0.10"
+
+# Utilities
+rand = "0.9"
+log = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+flate2 = "1.0"
+hostname = "0.4"
+anyhow = "1.0"
+clap = "4.5"
+tabled = "0.20"
+dashmap = "6.1"
+bitflags = "2.6"
+
+# Testing
+proptest = "1.5"
+criterion = "0.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1

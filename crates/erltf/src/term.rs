@@ -1,0 +1,1523 @@
+// Copyright (C) 2025-2026 Michael S. Klishin and Contributors
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+use crate::errors::TermConversionError;
+use crate::types::{
+    Atom, BigInt, ExternalFun, ExternalPid, ExternalPort, ExternalReference, InternalFun, Sign,
+};
+use std::cmp::Ordering;
+use std::collections::{BTreeMap, HashMap};
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::mem::discriminant;
+use std::ops::Index;
+use std::sync::Arc;
+
+#[derive(Debug, Clone, PartialEq, Default)]
+pub enum OwnedTerm {
+    Atom(Atom),
+    Integer(i64),
+    Float(f64),
+    Pid(ExternalPid),
+    Port(ExternalPort),
+    Reference(ExternalReference),
+    Binary(Vec<u8>),
+    BitBinary {
+        bytes: Vec<u8>,
+        bits: u8,
+    },
+    String(String),
+    List(Vec<Self>),
+    ImproperList {
+        elements: Vec<Self>,
+        tail: Box<OwnedTerm>,
+    },
+    Map(BTreeMap<Self, Self>),
+    Tuple(Vec<Self>),
+    BigInt(BigInt),
+    ExternalFun(ExternalFun),
+    InternalFun(Box<InternalFun>),
+    #[default]
+    Nil,
+}
+
+impl OwnedTerm {
+    pub fn atom<S: AsRef<str>>(name: S) -> Self {
+        OwnedTerm::Atom(Atom::new(name))
+    }
+
+    pub fn integer(value: i64) -> Self {
+        OwnedTerm::Integer(value)
+    }
+
+    pub fn float(value: f64) -> Self {
+        OwnedTerm::Float(value)
+    }
+
+    pub fn binary(data: Vec<u8>) -> Self {
+        OwnedTerm::Binary(data)
+    }
+
+    pub fn string<S: Into<String>>(value: S) -> Self {
+        OwnedTerm::String(value.into())
+    }
+
+    pub fn list(elements: Vec<Self>) -> Self {
+        OwnedTerm::List(elements)
+    }
+
+    pub fn improper_list(elements: Vec<Self>, tail: Self) -> Self {
+        OwnedTerm::ImproperList {
+            elements,
+            tail: Box::new(tail),
+        }
+    }
+
+    pub fn map(entries: BTreeMap<Self, Self>) -> Self {
+        OwnedTerm::Map(entries)
+    }
+
+    pub fn tuple(elements: Vec<Self>) -> Self {
+        OwnedTerm::Tuple(elements)
+    }
+
+    pub fn boolean(value: bool) -> Self {
+        OwnedTerm::atom(if value { "true" } else { "false" })
+    }
+
+    pub fn ok() -> Self {
+        OwnedTerm::atom("ok")
+    }
+
+    pub fn error() -> Self {
+        OwnedTerm::atom("error")
+    }
+
+    pub fn ok_tuple(value: OwnedTerm) -> Self {
+        OwnedTerm::Tuple(vec![OwnedTerm::ok(), value])
+    }
+
+    pub fn error_tuple(reason: OwnedTerm) -> Self {
+        OwnedTerm::Tuple(vec![OwnedTerm::error(), reason])
+    }
+
+    pub fn nil() -> Self {
+        OwnedTerm::Nil
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_atom(&self) -> bool {
+        matches!(self, OwnedTerm::Atom(_))
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_integer(&self) -> bool {
+        matches!(self, OwnedTerm::Integer(_))
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_list(&self) -> bool {
+        matches!(self, OwnedTerm::List(_) | OwnedTerm::Nil)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_map(&self) -> bool {
+        matches!(self, OwnedTerm::Map(_))
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_tuple(&self) -> bool {
+        matches!(self, OwnedTerm::Tuple(_))
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_atom(&self) -> Option<&Atom> {
+        match self {
+            OwnedTerm::Atom(a) => Some(a),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_integer(&self) -> Option<i64> {
+        match self {
+            OwnedTerm::Integer(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            OwnedTerm::Float(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_binary(&self) -> Option<&[u8]> {
+        match self {
+            OwnedTerm::Binary(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_string(&self) -> Option<&str> {
+        match self {
+            OwnedTerm::String(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_list(&self) -> Option<&[OwnedTerm]> {
+        match self {
+            OwnedTerm::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_map(&self) -> Option<&BTreeMap<Self, Self>> {
+        match self {
+            OwnedTerm::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_tuple(&self) -> Option<&[OwnedTerm]> {
+        match self {
+            OwnedTerm::Tuple(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn as_list_mut(&mut self) -> Option<&mut Vec<Self>> {
+        match self {
+            OwnedTerm::List(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn as_map_mut(&mut self) -> Option<&mut BTreeMap<Self, Self>> {
+        match self {
+            OwnedTerm::Map(m) => Some(m),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn as_tuple_mut(&mut self) -> Option<&mut Vec<Self>> {
+        match self {
+            OwnedTerm::Tuple(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    pub fn as_binary_mut(&mut self) -> Option<&mut Vec<u8>> {
+        match self {
+            OwnedTerm::Binary(b) => Some(b),
+            _ => None,
+        }
+    }
+
+    pub fn into_map_iter(
+        self,
+    ) -> Result<impl Iterator<Item = (OwnedTerm, OwnedTerm)>, TermConversionError> {
+        match self {
+            OwnedTerm::Map(m) => Ok(m.into_iter()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Map",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn type_name(&self) -> &'static str {
+        match self {
+            OwnedTerm::Atom(_) => "Atom",
+            OwnedTerm::Integer(_) => "Integer",
+            OwnedTerm::Float(_) => "Float",
+            OwnedTerm::Pid(_) => "Pid",
+            OwnedTerm::Port(_) => "Port",
+            OwnedTerm::Reference(_) => "Reference",
+            OwnedTerm::Binary(_) => "Binary",
+            OwnedTerm::BitBinary { .. } => "BitBinary",
+            OwnedTerm::String(_) => "String",
+            OwnedTerm::List(_) => "List",
+            OwnedTerm::ImproperList { .. } => "ImproperList",
+            OwnedTerm::Map(_) => "Map",
+            OwnedTerm::Tuple(_) => "Tuple",
+            OwnedTerm::BigInt(_) => "BigInt",
+            OwnedTerm::ExternalFun(_) => "ExternalFun",
+            OwnedTerm::InternalFun(_) => "InternalFun",
+            OwnedTerm::Nil => "Nil",
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn atom_name(&self) -> Option<&str> {
+        match self {
+            OwnedTerm::Atom(a) => Some(&a.name),
+            _ => None,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_atom_with_name(&self, name: &str) -> bool {
+        match self {
+            OwnedTerm::Atom(a) => a == name,
+            _ => false,
+        }
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_true(&self) -> bool {
+        self.as_bool() == Some(true)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn is_false(&self) -> bool {
+        self.as_bool() == Some(false)
+    }
+
+    #[inline]
+    #[must_use]
+    pub fn as_bool(&self) -> Option<bool> {
+        self.atom_name().and_then(|name| match name {
+            "true" => Some(true),
+            "false" => Some(false),
+            _ => None,
+        })
+    }
+
+    pub fn into_ok_value(self) -> Option<OwnedTerm> {
+        match self {
+            OwnedTerm::Tuple(mut elements) if elements.len() == 2 => {
+                if elements[0] == OwnedTerm::ok() {
+                    Some(elements.swap_remove(1))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn into_error_reason(self) -> Option<OwnedTerm> {
+        match self {
+            OwnedTerm::Tuple(mut elements) if elements.len() == 2 => {
+                if elements[0] == OwnedTerm::error() {
+                    Some(elements.swap_remove(1))
+                } else {
+                    None
+                }
+            }
+            _ => None,
+        }
+    }
+
+    pub fn map_get(&self, key: &OwnedTerm) -> Option<&OwnedTerm> {
+        match self {
+            OwnedTerm::Map(m) => m.get(key),
+            _ => None,
+        }
+    }
+
+    pub fn get<I: TermIndex>(&self, index: I) -> Option<&OwnedTerm> {
+        index.get_from_term(self)
+    }
+
+    pub fn iter(&self) -> OwnedTermIter<'_> {
+        match self {
+            OwnedTerm::List(elements) | OwnedTerm::Tuple(elements) => {
+                OwnedTermIter::Slice(elements.iter())
+            }
+            OwnedTerm::Nil => OwnedTermIter::Empty,
+            _ => OwnedTermIter::Empty,
+        }
+    }
+
+    pub fn proplist_get_atom_key(&self, key: &str) -> Option<&OwnedTerm> {
+        match self {
+            OwnedTerm::List(elements) => {
+                for element in elements {
+                    if let OwnedTerm::Tuple(tuple_elements) = element
+                        && tuple_elements.len() == 2
+                        && let OwnedTerm::Atom(atom) = &tuple_elements[0]
+                        && atom == key
+                    {
+                        return Some(&tuple_elements[1]);
+                    }
+                }
+                None
+            }
+            _ => None,
+        }
+    }
+
+    pub fn map_get_atom_key(&self, key: &str) -> Option<&OwnedTerm> {
+        match self {
+            OwnedTerm::Map(map) => map.iter().find_map(|(k, v)| {
+                if let OwnedTerm::Atom(atom) = k
+                    && atom.as_ref() == key
+                {
+                    return Some(v);
+                }
+                None
+            }),
+            _ => None,
+        }
+    }
+
+    pub fn as_erlang_string(&self) -> Option<String> {
+        match self {
+            OwnedTerm::List(integers) => {
+                let bytes: Vec<u8> = integers
+                    .iter()
+                    .filter_map(|t| {
+                        if let OwnedTerm::Integer(i) = t {
+                            if *i >= 0 && *i <= 255 {
+                                Some(*i as u8)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                if bytes.len() == integers.len() {
+                    Some(String::from_utf8_lossy(&bytes).to_string())
+                } else {
+                    None
+                }
+            }
+            OwnedTerm::String(s) => Some(s.clone()),
+            OwnedTerm::Binary(b) => Some(String::from_utf8_lossy(b).to_string()),
+            _ => None,
+        }
+    }
+
+    pub fn map_iter(&self) -> Option<impl Iterator<Item = (&OwnedTerm, &OwnedTerm)>> {
+        match self {
+            OwnedTerm::Map(m) => Some(m.iter()),
+            _ => None,
+        }
+    }
+
+    pub fn try_into_list(self) -> Result<Vec<OwnedTerm>, TermConversionError> {
+        match self {
+            OwnedTerm::List(l) => Ok(l),
+            OwnedTerm::Nil => Ok(Vec::new()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "List or Nil",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn try_into_tuple(self) -> Result<Vec<OwnedTerm>, TermConversionError> {
+        match self {
+            OwnedTerm::Tuple(t) => Ok(t),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Tuple",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn try_into_map(self) -> Result<BTreeMap<OwnedTerm, OwnedTerm>, TermConversionError> {
+        match self {
+            OwnedTerm::Map(m) => Ok(m),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Map",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn try_into_binary(self) -> Result<Vec<u8>, TermConversionError> {
+        match self {
+            OwnedTerm::Binary(b) => Ok(b),
+            OwnedTerm::String(s) => Ok(s.into_bytes()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Binary or String",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn try_into_string(self) -> Result<String, TermConversionError> {
+        match self {
+            OwnedTerm::String(s) => Ok(s),
+            OwnedTerm::Binary(b) => {
+                String::from_utf8(b).map_err(|_| TermConversionError::OutOfRange)
+            }
+            _ => Err(TermConversionError::WrongType {
+                expected: "String or Binary",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn try_into_atom(self) -> Result<Arc<str>, TermConversionError> {
+        match self {
+            OwnedTerm::Atom(a) => Ok(a.name),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Atom",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    #[must_use]
+    pub fn len(&self) -> usize {
+        match self {
+            OwnedTerm::List(l) => l.len(),
+            OwnedTerm::Tuple(t) => t.len(),
+            OwnedTerm::Map(m) => m.len(),
+            OwnedTerm::Binary(b) => b.len(),
+            OwnedTerm::String(s) => s.len(),
+            OwnedTerm::Nil => 0,
+            _ => 0,
+        }
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        match self {
+            OwnedTerm::List(l) => l.is_empty(),
+            OwnedTerm::Tuple(t) => t.is_empty(),
+            OwnedTerm::Map(m) => m.is_empty(),
+            OwnedTerm::Binary(b) => b.is_empty(),
+            OwnedTerm::String(s) => s.is_empty(),
+            OwnedTerm::Nil => true,
+            _ => false,
+        }
+    }
+
+    pub fn estimated_encoded_size(&self) -> usize {
+        match self {
+            OwnedTerm::Atom(a) => 3 + a.len(),
+            OwnedTerm::Integer(i) => {
+                if (0..=255).contains(i) {
+                    2
+                } else if *i >= i32::MIN as i64 && *i <= i32::MAX as i64 {
+                    5
+                } else {
+                    let abs = i.unsigned_abs();
+                    let bytes = (64u32 - abs.leading_zeros()).div_ceil(8);
+                    3 + bytes as usize
+                }
+            }
+            OwnedTerm::Float(_) => 9,
+            OwnedTerm::Binary(b) => 5 + b.len(),
+            OwnedTerm::BitBinary { bytes, .. } => 6 + bytes.len(),
+            OwnedTerm::String(s) => 5 + s.len(),
+            OwnedTerm::List(l) => {
+                5 + 1 + l.iter().map(|t| t.estimated_encoded_size()).sum::<usize>()
+            }
+            OwnedTerm::ImproperList { elements, tail } => {
+                5 + elements
+                    .iter()
+                    .map(|t| t.estimated_encoded_size())
+                    .sum::<usize>()
+                    + tail.estimated_encoded_size()
+            }
+            OwnedTerm::Tuple(t) => {
+                let base = if t.len() <= 255 { 2 } else { 5 };
+                base + t.iter().map(|t| t.estimated_encoded_size()).sum::<usize>()
+            }
+            OwnedTerm::Map(m) => {
+                5 + m
+                    .iter()
+                    .map(|(k, v)| k.estimated_encoded_size() + v.estimated_encoded_size())
+                    .sum::<usize>()
+            }
+            OwnedTerm::Pid(_) => 17,
+            OwnedTerm::Port(_) => 16,
+            OwnedTerm::Reference(r) => 7 + r.ids.len() * 4,
+            OwnedTerm::BigInt(b) => {
+                let base = if b.digits.len() <= 255 { 2 } else { 5 };
+                base + 1 + b.digits.len()
+            }
+            OwnedTerm::ExternalFun(_) => 32,
+            OwnedTerm::InternalFun(f) => {
+                64 + f
+                    .free_vars
+                    .iter()
+                    .map(|t| t.estimated_encoded_size())
+                    .sum::<usize>()
+            }
+            OwnedTerm::Nil => 1,
+        }
+    }
+}
+
+impl From<Atom> for OwnedTerm {
+    fn from(a: Atom) -> Self {
+        OwnedTerm::Atom(a)
+    }
+}
+
+impl From<i64> for OwnedTerm {
+    fn from(i: i64) -> Self {
+        OwnedTerm::Integer(i)
+    }
+}
+
+impl From<i32> for OwnedTerm {
+    fn from(i: i32) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<i16> for OwnedTerm {
+    fn from(i: i16) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<i8> for OwnedTerm {
+    fn from(i: i8) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<u32> for OwnedTerm {
+    fn from(i: u32) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<u16> for OwnedTerm {
+    fn from(i: u16) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<u8> for OwnedTerm {
+    fn from(i: u8) -> Self {
+        OwnedTerm::Integer(i as i64)
+    }
+}
+
+impl From<bool> for OwnedTerm {
+    fn from(b: bool) -> Self {
+        OwnedTerm::boolean(b)
+    }
+}
+
+impl From<f32> for OwnedTerm {
+    fn from(f: f32) -> Self {
+        OwnedTerm::Float(f as f64)
+    }
+}
+
+impl From<f64> for OwnedTerm {
+    fn from(f: f64) -> Self {
+        OwnedTerm::Float(f)
+    }
+}
+
+impl From<Vec<u8>> for OwnedTerm {
+    fn from(b: Vec<u8>) -> Self {
+        OwnedTerm::Binary(b)
+    }
+}
+
+impl From<String> for OwnedTerm {
+    fn from(s: String) -> Self {
+        OwnedTerm::String(s)
+    }
+}
+
+impl From<&str> for OwnedTerm {
+    fn from(s: &str) -> Self {
+        OwnedTerm::String(s.to_string())
+    }
+}
+
+impl From<Vec<Self>> for OwnedTerm {
+    fn from(v: Vec<Self>) -> Self {
+        OwnedTerm::List(v)
+    }
+}
+
+impl From<BTreeMap<Self, Self>> for OwnedTerm {
+    fn from(m: BTreeMap<Self, Self>) -> Self {
+        OwnedTerm::Map(m)
+    }
+}
+
+impl<K: Into<OwnedTerm>, V: Into<OwnedTerm>, S: std::hash::BuildHasher> From<HashMap<K, V, S>>
+    for OwnedTerm
+{
+    fn from(m: HashMap<K, V, S>) -> Self {
+        let map = m.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
+        OwnedTerm::Map(map)
+    }
+}
+
+impl<T: Into<OwnedTerm> + Clone> From<&[T]> for OwnedTerm {
+    fn from(slice: &[T]) -> Self {
+        OwnedTerm::List(slice.iter().cloned().map(Into::into).collect())
+    }
+}
+
+impl<T: Into<OwnedTerm>> FromIterator<T> for OwnedTerm {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        OwnedTerm::List(iter.into_iter().map(Into::into).collect())
+    }
+}
+
+impl<K: Into<OwnedTerm>, V: Into<OwnedTerm>> FromIterator<(K, V)> for OwnedTerm {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        OwnedTerm::Map(
+            iter.into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        )
+    }
+}
+
+impl From<Vec<i32>> for OwnedTerm {
+    fn from(v: Vec<i32>) -> Self {
+        OwnedTerm::List(
+            v.into_iter()
+                .map(|i| OwnedTerm::Integer(i as i64))
+                .collect(),
+        )
+    }
+}
+
+impl From<Vec<i64>> for OwnedTerm {
+    fn from(v: Vec<i64>) -> Self {
+        OwnedTerm::List(v.into_iter().map(OwnedTerm::Integer).collect())
+    }
+}
+
+impl TryFrom<OwnedTerm> for i64 {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Integer(i) => Ok(i),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Integer",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for f64 {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Float(f) => Ok(f),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Float",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for String {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::String(s) => Ok(s),
+            OwnedTerm::Binary(b) => {
+                String::from_utf8(b).map_err(|_| TermConversionError::OutOfRange)
+            }
+            _ => Err(TermConversionError::WrongType {
+                expected: "String or Binary",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for Vec<u8> {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Binary(b) => Ok(b),
+            OwnedTerm::String(s) => Ok(s.into_bytes()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Binary or String",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for Vec<OwnedTerm> {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::List(l) => Ok(l),
+            OwnedTerm::Tuple(t) => Ok(t),
+            OwnedTerm::Nil => Ok(Vec::new()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "List, Tuple, or Nil",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for bool {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        term.as_bool().ok_or(TermConversionError::WrongType {
+            expected: "boolean atom (true/false)",
+            actual: term.type_name(),
+        })
+    }
+}
+
+impl TryFrom<OwnedTerm> for u32 {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Integer(i) if i >= 0 && i <= u32::MAX as i64 => Ok(i as u32),
+            OwnedTerm::Integer(_) => Err(TermConversionError::OutOfRange),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Integer",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for u16 {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Integer(i) if i >= 0 && i <= u16::MAX as i64 => Ok(i as u16),
+            OwnedTerm::Integer(_) => Err(TermConversionError::OutOfRange),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Integer",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl TryFrom<OwnedTerm> for u8 {
+    type Error = TermConversionError;
+
+    fn try_from(term: OwnedTerm) -> Result<Self, Self::Error> {
+        match term {
+            OwnedTerm::Integer(i) if i >= 0 && i <= u8::MAX as i64 => Ok(i as u8),
+            OwnedTerm::Integer(_) => Err(TermConversionError::OutOfRange),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Integer",
+                actual: term.type_name(),
+            }),
+        }
+    }
+}
+
+impl Hash for OwnedTerm {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        discriminant(self).hash(state);
+
+        match self {
+            OwnedTerm::Atom(a) => a.hash(state),
+            OwnedTerm::Integer(i) => i.hash(state),
+            OwnedTerm::Binary(b) => b.hash(state),
+            OwnedTerm::String(s) => s.hash(state),
+            OwnedTerm::Pid(p) => p.hash(state),
+            OwnedTerm::Port(p) => p.hash(state),
+            OwnedTerm::Reference(r) => r.hash(state),
+            OwnedTerm::Nil => (),
+            OwnedTerm::Float(f) => f.to_bits().hash(state),
+            OwnedTerm::BigInt(big) => big.hash(state),
+            OwnedTerm::BitBinary { bytes, bits } => {
+                bytes.hash(state);
+                bits.hash(state);
+            }
+            OwnedTerm::List(elements) => {
+                elements.len().hash(state);
+                for elem in elements {
+                    elem.hash(state);
+                }
+            }
+            OwnedTerm::ImproperList { elements, tail } => {
+                elements.len().hash(state);
+                for elem in elements {
+                    elem.hash(state);
+                }
+                tail.hash(state);
+            }
+            OwnedTerm::Tuple(elements) => {
+                elements.len().hash(state);
+                for elem in elements {
+                    elem.hash(state);
+                }
+            }
+            OwnedTerm::Map(map) => {
+                map.len().hash(state);
+                for (k, v) in map.iter() {
+                    k.hash(state);
+                    v.hash(state);
+                }
+            }
+            OwnedTerm::ExternalFun(f) => f.hash(state),
+            OwnedTerm::InternalFun(f) => {
+                f.arity.hash(state);
+                f.uniq.hash(state);
+                f.index.hash(state);
+                f.num_free.hash(state);
+                f.module.hash(state);
+                f.old_index.hash(state);
+                f.old_uniq.hash(state);
+                f.pid.hash(state);
+                for var in &f.free_vars {
+                    var.hash(state);
+                }
+            }
+        }
+    }
+}
+
+impl Eq for OwnedTerm {}
+
+impl Ord for OwnedTerm {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if discriminant(self) == discriminant(other) {
+            match (self, other) {
+                (OwnedTerm::Integer(a), OwnedTerm::Integer(b)) => return a.cmp(b),
+                (OwnedTerm::Atom(a), OwnedTerm::Atom(b)) => return a.name.cmp(&b.name),
+                (OwnedTerm::Binary(a), OwnedTerm::Binary(b)) => return a.cmp(b),
+                (OwnedTerm::String(a), OwnedTerm::String(b)) => return a.cmp(b),
+                (OwnedTerm::Nil, OwnedTerm::Nil) => return Ordering::Equal,
+                _ => {}
+            }
+        }
+
+        let type_order = |t: &OwnedTerm| -> u8 {
+            match t {
+                OwnedTerm::Integer(_) | OwnedTerm::BigInt(_) | OwnedTerm::Float(_) => 0,
+                OwnedTerm::Atom(_) => 1,
+                OwnedTerm::Reference(_) => 2,
+                OwnedTerm::ExternalFun(_) | OwnedTerm::InternalFun(_) => 3,
+                OwnedTerm::Port(_) => 4,
+                OwnedTerm::Pid(_) => 5,
+                OwnedTerm::Tuple(_) => 6,
+                OwnedTerm::Map(_) => 7,
+                OwnedTerm::Nil | OwnedTerm::List(_) | OwnedTerm::ImproperList { .. } => 8,
+                OwnedTerm::Binary(_) | OwnedTerm::BitBinary { .. } | OwnedTerm::String(_) => 9,
+            }
+        };
+
+        match type_order(self).cmp(&type_order(other)) {
+            Ordering::Equal => match (self, other) {
+                (OwnedTerm::Integer(a), OwnedTerm::Integer(b)) => a.cmp(b),
+                (OwnedTerm::Integer(a), OwnedTerm::BigInt(b)) => compare_int_bigint(*a, b),
+                (OwnedTerm::BigInt(a), OwnedTerm::Integer(b)) => compare_bigint_int(a, *b),
+                (OwnedTerm::BigInt(a), OwnedTerm::BigInt(b)) => compare_bigint(a, b),
+                (OwnedTerm::Integer(a), OwnedTerm::Float(b)) => compare_int_float(*a, *b),
+                (OwnedTerm::Float(a), OwnedTerm::Integer(b)) => compare_float_int(*a, *b),
+                (OwnedTerm::BigInt(a), OwnedTerm::Float(b)) => compare_bigint_float(a, *b),
+                (OwnedTerm::Float(a), OwnedTerm::BigInt(b)) => compare_float_bigint(*a, b),
+                (OwnedTerm::Float(a), OwnedTerm::Float(b)) => {
+                    if a.is_nan() && b.is_nan() {
+                        Ordering::Equal
+                    } else if a.is_nan() {
+                        Ordering::Greater
+                    } else if b.is_nan() {
+                        Ordering::Less
+                    } else {
+                        a.partial_cmp(b).unwrap_or(Ordering::Equal)
+                    }
+                }
+                (OwnedTerm::Atom(a), OwnedTerm::Atom(b)) => a.name.cmp(&b.name),
+                (OwnedTerm::Reference(a), OwnedTerm::Reference(b)) => a
+                    .node
+                    .name
+                    .cmp(&b.node.name)
+                    .then_with(|| a.creation.cmp(&b.creation))
+                    .then_with(|| a.ids.cmp(&b.ids)),
+                (OwnedTerm::ExternalFun(a), OwnedTerm::ExternalFun(b)) => a
+                    .module
+                    .name
+                    .cmp(&b.module.name)
+                    .then_with(|| a.function.name.cmp(&b.function.name))
+                    .then_with(|| a.arity.cmp(&b.arity)),
+                (OwnedTerm::InternalFun(a), OwnedTerm::InternalFun(b)) => a
+                    .module
+                    .name
+                    .cmp(&b.module.name)
+                    .then_with(|| a.old_index.cmp(&b.old_index))
+                    .then_with(|| a.old_uniq.cmp(&b.old_uniq))
+                    .then_with(|| a.index.cmp(&b.index))
+                    .then_with(|| a.uniq.cmp(&b.uniq))
+                    .then_with(|| a.pid.cmp(&b.pid))
+                    .then_with(|| compare_term_lists(&a.free_vars, &b.free_vars)),
+                (OwnedTerm::ExternalFun(_), OwnedTerm::InternalFun(_)) => Ordering::Less,
+                (OwnedTerm::InternalFun(_), OwnedTerm::ExternalFun(_)) => Ordering::Greater,
+                (OwnedTerm::Port(a), OwnedTerm::Port(b)) => a
+                    .node
+                    .name
+                    .cmp(&b.node.name)
+                    .then_with(|| a.id.cmp(&b.id))
+                    .then_with(|| a.creation.cmp(&b.creation)),
+                (OwnedTerm::Pid(a), OwnedTerm::Pid(b)) => a
+                    .node
+                    .name
+                    .cmp(&b.node.name)
+                    .then_with(|| a.id.cmp(&b.id))
+                    .then_with(|| a.serial.cmp(&b.serial))
+                    .then_with(|| a.creation.cmp(&b.creation)),
+                (OwnedTerm::Tuple(a), OwnedTerm::Tuple(b)) => {
+                    a.len().cmp(&b.len()).then_with(|| {
+                        for (x, y) in a.iter().zip(b.iter()) {
+                            match x.cmp(y) {
+                                Ordering::Equal => continue,
+                                other => return other,
+                            }
+                        }
+                        Ordering::Equal
+                    })
+                }
+                (OwnedTerm::Map(a), OwnedTerm::Map(b)) => a.len().cmp(&b.len()).then_with(|| {
+                    for ((k1, v1), (k2, v2)) in a.iter().zip(b.iter()) {
+                        match k1.cmp(k2) {
+                            Ordering::Equal => match v1.cmp(v2) {
+                                Ordering::Equal => continue,
+                                other => return other,
+                            },
+                            other => return other,
+                        }
+                    }
+                    Ordering::Equal
+                }),
+                (OwnedTerm::Nil, OwnedTerm::Nil) => Ordering::Equal,
+                (OwnedTerm::List(a), OwnedTerm::List(b)) => {
+                    for (x, y) in a.iter().zip(b.iter()) {
+                        match x.cmp(y) {
+                            Ordering::Equal => continue,
+                            other => return other,
+                        }
+                    }
+                    a.len().cmp(&b.len())
+                }
+                (OwnedTerm::List(a), OwnedTerm::Nil) => {
+                    if a.is_empty() {
+                        Ordering::Equal
+                    } else {
+                        Ordering::Greater
+                    }
+                }
+                (OwnedTerm::Nil, OwnedTerm::List(b)) => {
+                    if b.is_empty() {
+                        Ordering::Equal
+                    } else {
+                        Ordering::Less
+                    }
+                }
+                (
+                    OwnedTerm::ImproperList {
+                        elements: a,
+                        tail: ta,
+                    },
+                    OwnedTerm::ImproperList {
+                        elements: b,
+                        tail: tb,
+                    },
+                ) => {
+                    for (x, y) in a.iter().zip(b.iter()) {
+                        match x.cmp(y) {
+                            Ordering::Equal => continue,
+                            other => return other,
+                        }
+                    }
+                    a.len().cmp(&b.len()).then_with(|| ta.cmp(tb))
+                }
+                (OwnedTerm::Binary(a), OwnedTerm::Binary(b)) => a.cmp(b),
+                (OwnedTerm::String(a), OwnedTerm::String(b)) => a.cmp(b),
+                (OwnedTerm::Binary(a), OwnedTerm::String(b)) => a.as_slice().cmp(b.as_bytes()),
+                (OwnedTerm::String(a), OwnedTerm::Binary(b)) => a.as_bytes().cmp(b.as_slice()),
+                (
+                    OwnedTerm::BitBinary {
+                        bytes: a,
+                        bits: abits,
+                    },
+                    OwnedTerm::BitBinary {
+                        bytes: b,
+                        bits: bbits,
+                    },
+                ) => a.cmp(b).then_with(|| abits.cmp(bbits)),
+                _ => Ordering::Equal,
+            },
+            other => other,
+        }
+    }
+}
+
+impl PartialOrd for OwnedTerm {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl fmt::Display for OwnedTerm {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            OwnedTerm::Atom(a) => write!(f, "{}", a.name),
+            OwnedTerm::Integer(i) => write!(f, "{}", i),
+            OwnedTerm::Float(fl) => write!(f, "{}", fl),
+            OwnedTerm::Binary(b) => write!(f, "<<{} bytes>>", b.len()),
+            OwnedTerm::BitBinary { bytes, bits } => {
+                write!(f, "<<{} bytes, {} bits>>", bytes.len(), bits)
+            }
+            OwnedTerm::String(s) => write!(f, "\"{}\"", s),
+            OwnedTerm::List(l) => {
+                write!(f, "[")?;
+                for (i, term) in l.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", term)?;
+                }
+                write!(f, "]")
+            }
+            OwnedTerm::Tuple(t) => {
+                write!(f, "{{")?;
+                for (i, term) in t.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", term)?;
+                }
+                write!(f, "}}")
+            }
+            OwnedTerm::Map(m) => {
+                write!(f, "#{{")?;
+                for (i, (k, v)) in m.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{} => {}", k, v)?;
+                }
+                write!(f, "}}")
+            }
+            OwnedTerm::Nil => write!(f, "[]"),
+            OwnedTerm::Pid(p) => write!(f, "<{}.{}.{}>", p.id, p.serial, p.creation),
+            OwnedTerm::Port(p) => write!(f, "#Port<{}>", p.id),
+            OwnedTerm::Reference(r) => write!(f, "#Ref<{:?}>", r.ids),
+            OwnedTerm::BigInt(big) => {
+                let sign = if big.sign.is_negative() { "-" } else { "" };
+                write!(f, "{}BigInt<{} bytes>", sign, big.digits.len())
+            }
+            OwnedTerm::ExternalFun(fun) => write!(
+                f,
+                "fun {}:{}/{}",
+                fun.module.name, fun.function.name, fun.arity
+            ),
+            OwnedTerm::InternalFun(fun) => write!(f, "fun {}/{}", fun.module.name, fun.arity),
+            OwnedTerm::ImproperList { elements, tail } => {
+                write!(f, "[")?;
+                for (i, term) in elements.iter().enumerate() {
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
+                    write!(f, "{}", term)?;
+                }
+                write!(f, " | {}]", tail)
+            }
+        }
+    }
+}
+
+pub enum OwnedTermIter<'a> {
+    Slice(std::slice::Iter<'a, OwnedTerm>),
+    Empty,
+}
+
+impl<'a> Iterator for OwnedTermIter<'a> {
+    type Item = &'a OwnedTerm;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            OwnedTermIter::Slice(iter) => iter.next(),
+            OwnedTermIter::Empty => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            OwnedTermIter::Slice(iter) => iter.size_hint(),
+            OwnedTermIter::Empty => (0, Some(0)),
+        }
+    }
+}
+
+impl<'a> ExactSizeIterator for OwnedTermIter<'a> {
+    fn len(&self) -> usize {
+        match self {
+            OwnedTermIter::Slice(iter) => iter.len(),
+            OwnedTermIter::Empty => 0,
+        }
+    }
+}
+
+impl IntoIterator for OwnedTerm {
+    type Item = OwnedTerm;
+    type IntoIter = OwnedTermIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            OwnedTerm::List(elements) | OwnedTerm::Tuple(elements) => {
+                OwnedTermIntoIter::Vec(elements.into_iter())
+            }
+            OwnedTerm::Nil => OwnedTermIntoIter::Empty,
+            _ => OwnedTermIntoIter::Empty,
+        }
+    }
+}
+
+pub enum OwnedTermIntoIter {
+    Vec(std::vec::IntoIter<OwnedTerm>),
+    Empty,
+}
+
+impl Iterator for OwnedTermIntoIter {
+    type Item = OwnedTerm;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            OwnedTermIntoIter::Vec(iter) => iter.next(),
+            OwnedTermIntoIter::Empty => None,
+        }
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        match self {
+            OwnedTermIntoIter::Vec(iter) => iter.size_hint(),
+            OwnedTermIntoIter::Empty => (0, Some(0)),
+        }
+    }
+}
+
+impl ExactSizeIterator for OwnedTermIntoIter {
+    fn len(&self) -> usize {
+        match self {
+            OwnedTermIntoIter::Vec(iter) => iter.len(),
+            OwnedTermIntoIter::Empty => 0,
+        }
+    }
+}
+
+impl Index<usize> for OwnedTerm {
+    type Output = OwnedTerm;
+
+    #[track_caller]
+    fn index(&self, index: usize) -> &Self::Output {
+        match self {
+            OwnedTerm::List(elements) | OwnedTerm::Tuple(elements) => &elements[index],
+            OwnedTerm::Nil => panic!(
+                "index out of bounds: the len is 0 but the index is {}",
+                index
+            ),
+            _ => panic!("cannot index into {}", self.type_name()),
+        }
+    }
+}
+
+impl Index<&OwnedTerm> for OwnedTerm {
+    type Output = OwnedTerm;
+
+    #[track_caller]
+    fn index(&self, key: &OwnedTerm) -> &Self::Output {
+        match self {
+            OwnedTerm::Map(m) => m.get(key).unwrap_or_else(|| panic!("key not found in map")),
+            _ => panic!("cannot index {} with a key", self.type_name()),
+        }
+    }
+}
+
+pub trait TermIndex {
+    fn get_from_term<'a>(&self, term: &'a OwnedTerm) -> Option<&'a OwnedTerm>;
+}
+
+impl TermIndex for usize {
+    fn get_from_term<'a>(&self, term: &'a OwnedTerm) -> Option<&'a OwnedTerm> {
+        match term {
+            OwnedTerm::List(elements) | OwnedTerm::Tuple(elements) => elements.get(*self),
+            _ => None,
+        }
+    }
+}
+
+impl TermIndex for &OwnedTerm {
+    fn get_from_term<'a>(&self, term: &'a OwnedTerm) -> Option<&'a OwnedTerm> {
+        match term {
+            OwnedTerm::Map(m) => m.get(self),
+            _ => None,
+        }
+    }
+}
+
+impl TermIndex for &str {
+    fn get_from_term<'a>(&self, term: &'a OwnedTerm) -> Option<&'a OwnedTerm> {
+        match term {
+            OwnedTerm::Map(m) => {
+                let key = OwnedTerm::atom(*self);
+                m.get(&key)
+            }
+            _ => None,
+        }
+    }
+}
+
+pub struct MapBuilder {
+    map: BTreeMap<OwnedTerm, OwnedTerm>,
+}
+
+impl MapBuilder {
+    pub fn new() -> Self {
+        MapBuilder {
+            map: BTreeMap::new(),
+        }
+    }
+
+    pub fn insert<K: Into<OwnedTerm>, V: Into<OwnedTerm>>(
+        &mut self,
+        key: K,
+        value: V,
+    ) -> &mut Self {
+        self.map.insert(key.into(), value.into());
+        self
+    }
+
+    pub fn build(self) -> OwnedTerm {
+        OwnedTerm::Map(self.map)
+    }
+}
+
+impl Default for MapBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub struct ListBuilder {
+    elements: Vec<OwnedTerm>,
+}
+
+impl ListBuilder {
+    pub fn new() -> Self {
+        ListBuilder {
+            elements: Vec::new(),
+        }
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
+        ListBuilder {
+            elements: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn push<T: Into<OwnedTerm>>(&mut self, element: T) -> &mut Self {
+        self.elements.push(element.into());
+        self
+    }
+
+    pub fn extend<I>(&mut self, iter: I) -> &mut Self
+    where
+        I: IntoIterator,
+        I::Item: Into<OwnedTerm>,
+    {
+        self.elements.extend(iter.into_iter().map(Into::into));
+        self
+    }
+
+    pub fn build(self) -> OwnedTerm {
+        OwnedTerm::List(self.elements)
+    }
+
+    pub fn build_tuple(self) -> OwnedTerm {
+        OwnedTerm::Tuple(self.elements)
+    }
+}
+
+impl Default for ListBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl OwnedTerm {
+    pub fn map_builder() -> MapBuilder {
+        MapBuilder::new()
+    }
+
+    pub fn list_builder() -> ListBuilder {
+        ListBuilder::new()
+    }
+}
+
+fn compare_int_bigint(i: i64, big: &BigInt) -> Ordering {
+    if big.digits.is_empty() {
+        return i.cmp(&0);
+    }
+
+    if big.sign.is_negative() {
+        if i >= 0 {
+            return Ordering::Greater;
+        }
+        if big.digits.len() > 8 {
+            return Ordering::Greater;
+        }
+        let abs_i = i.wrapping_neg() as u64;
+        let big_val = bigint_to_u64(big);
+        abs_i.cmp(&big_val).reverse()
+    } else {
+        if i < 0 {
+            return Ordering::Less;
+        }
+        if big.digits.len() > 8 {
+            return Ordering::Less;
+        }
+        let abs_i = i as u64;
+        let big_val = bigint_to_u64(big);
+        abs_i.cmp(&big_val)
+    }
+}
+
+fn compare_bigint_int(big: &BigInt, i: i64) -> Ordering {
+    compare_int_bigint(i, big).reverse()
+}
+
+fn compare_bigint(a: &BigInt, b: &BigInt) -> Ordering {
+    match (a.sign, b.sign) {
+        (Sign::Positive, Sign::Negative) => Ordering::Greater,
+        (Sign::Negative, Sign::Positive) => Ordering::Less,
+        (Sign::Positive, Sign::Positive) => a
+            .digits
+            .len()
+            .cmp(&b.digits.len())
+            .then_with(|| a.digits.cmp(&b.digits)),
+        (Sign::Negative, Sign::Negative) => a
+            .digits
+            .len()
+            .cmp(&b.digits.len())
+            .then_with(|| a.digits.cmp(&b.digits))
+            .reverse(),
+    }
+}
+
+fn bigint_to_u64(big: &BigInt) -> u64 {
+    let mut result = 0u64;
+    for (i, &byte) in big.digits.iter().enumerate().take(8) {
+        result |= (byte as u64) << (i * 8);
+    }
+    result
+}
+
+fn compare_int_float(i: i64, f: f64) -> Ordering {
+    if f.is_nan() {
+        return Ordering::Less;
+    }
+    let i_as_f = i as f64;
+    i_as_f.partial_cmp(&f).unwrap_or(Ordering::Equal)
+}
+
+fn compare_float_int(f: f64, i: i64) -> Ordering {
+    compare_int_float(i, f).reverse()
+}
+
+fn compare_bigint_float(big: &BigInt, f: f64) -> Ordering {
+    if f.is_nan() {
+        return Ordering::Less;
+    }
+    let big_as_f = bigint_to_f64(big);
+    big_as_f.partial_cmp(&f).unwrap_or(Ordering::Equal)
+}
+
+fn compare_float_bigint(f: f64, big: &BigInt) -> Ordering {
+    compare_bigint_float(big, f).reverse()
+}
+
+fn bigint_to_f64(big: &BigInt) -> f64 {
+    let mut result = 0f64;
+    let mut scale = 1.0f64;
+
+    for &byte in big.digits.iter() {
+        let contribution = (byte as f64) * scale;
+        if contribution.is_infinite() || scale.is_infinite() {
+            return if big.sign.is_negative() {
+                f64::NEG_INFINITY
+            } else {
+                f64::INFINITY
+            };
+        }
+        result += contribution;
+        scale *= 256.0;
+    }
+
+    if big.sign.is_negative() {
+        -result
+    } else {
+        result
+    }
+}
+
+fn compare_term_lists(a: &[OwnedTerm], b: &[OwnedTerm]) -> Ordering {
+    for (x, y) in a.iter().zip(b.iter()) {
+        match x.cmp(y) {
+            Ordering::Equal => continue,
+            other => return other,
+        }
+    }
+    a.len().cmp(&b.len())
+}

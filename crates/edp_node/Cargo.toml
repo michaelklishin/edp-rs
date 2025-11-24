@@ -1,0 +1,24 @@
+[package]
+name = "edp_node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "High-level Erlang Distribution Protocol node implementation"
+keywords = ["erlang", "distribution", "node", "actor", "otp"]
+categories = ["network-programming", "asynchronous"]
+
+[dependencies]
+erltf = { path = "../erltf" }
+erltf_serde = { path = "../erltf_serde" }
+edp_client = { path = "../edp_client" }
+
+tokio = { workspace = true, default-features = false, features = ["net", "io-util", "time", "sync", "macros", "rt"] }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+dashmap = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, default-features = false, features = ["rt", "rt-multi-thread", "test-util"] }
+tracing-subscriber = { workspace = true }

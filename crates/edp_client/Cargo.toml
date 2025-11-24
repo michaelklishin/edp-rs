@@ -1,0 +1,26 @@
+[package]
+name = "edp_client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Low-level Erlang Distribution Protocol client"
+keywords = ["erlang", "distribution", "protocol", "client"]
+categories = ["network-programming", "asynchronous"]
+
+[dependencies]
+erltf = { path = "../erltf" }
+erltf_serde = { path = "../erltf_serde" }
+
+tokio = { workspace = true, default-features = false, features = ["net", "io-util", "time", "sync", "macros"] }
+thiserror = { workspace = true }
+nom = { workspace = true }
+bytes = { workspace = true }
+md-5 = { workspace = true }
+tracing = { workspace = true }
+bitflags = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true, default-features = false, features = ["rt", "rt-multi-thread", "test-util"] }
+proptest = { workspace = true }

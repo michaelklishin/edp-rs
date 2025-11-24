@@ -1,0 +1,31 @@
+[package]
+name = "erltf"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Erlang External Term Format codec for Rust"
+keywords = ["erlang", "etf", "external-term-format", "codec", "serialization"]
+categories = ["encoding", "network-programming"]
+
+[dependencies]
+thiserror = { workspace = true }
+bytes = { workspace = true }
+nom = { workspace = true }
+log = { workspace = true }
+flate2 = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+criterion = { workspace = true }
+
+[[bench]]
+name = "encoding"
+harness = false
+
+[[bench]]
+name = "decoding"
+harness = false

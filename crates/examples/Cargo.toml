@@ -1,0 +1,61 @@
+[package]
+name = "examples"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "example_epmd_names"
+path = "src/epmd_names.rs"
+
+[[bin]]
+name = "example_simple_node"
+path = "src/simple_node.rs"
+
+[[bin]]
+name = "example_rust_to_erlang_basic_rpc"
+path = "src/example_rust_to_erlang_basic_rpc.rs"
+
+[[bin]]
+name = "example_send_message"
+path = "src/send_message_to_registered_process.rs"
+
+[[bin]]
+name = "example_epmd_dump"
+path = "src/epmd_dump.rs"
+
+[[bin]]
+name = "example_epmd_node_info"
+path = "src/epmd_node_info.rs"
+
+[[bin]]
+name = "examplectl"
+path = "src/examplectl.rs"
+
+[[bin]]
+name = "examples-diagnostics"
+path = "src/examples_diagnostics.rs"
+
+[[bin]]
+name = "example_send_direct_message"
+path = "src/send_direct_message.rs"
+
+[[bin]]
+name = "example_monitor_process"
+path = "src/monitor_process.rs"
+
+[[bin]]
+name = "example_link_processes"
+path = "src/link_processes.rs"
+
+[dependencies]
+edp_client = { path = "../edp_client" }
+edp_node = { path = "../edp_node" }
+erltf = { path = "../erltf" }
+erltf_serde = { path = "../erltf_serde" }
+tokio = { workspace = true, default-features = false, features = ["rt", "rt-multi-thread", "macros", "signal"] }
+anyhow = { workspace = true }
+hostname = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { workspace = true }
+tabled = { workspace = true }
