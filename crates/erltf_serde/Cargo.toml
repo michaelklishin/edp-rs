@@ -10,7 +10,7 @@ keywords = ["erlang", "serde", "serialization", "etf"]
 categories = ["encoding"]
 
 [dependencies]
-erltf = { path = "../erltf" }
+erltf = { version = "0.5.0", path = "../erltf" }
 serde = { workspace = true }
 thiserror = { workspace = true }
 

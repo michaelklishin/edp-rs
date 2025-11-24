@@ -10,8 +10,8 @@ keywords = ["erlang", "distribution", "protocol", "client"]
 categories = ["network-programming", "asynchronous"]
 
 [dependencies]
-erltf = { path = "../erltf" }
-erltf_serde = { path = "../erltf_serde" }
+erltf = { version = "0.5.0", path = "../erltf" }
+erltf_serde = { version = "0.5.0", path = "../erltf_serde" }
 
 tokio = { workspace = true, default-features = false, features = ["net", "io-util", "time", "sync", "macros"] }
 thiserror = { workspace = true }

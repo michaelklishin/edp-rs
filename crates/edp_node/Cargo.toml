@@ -10,9 +10,9 @@ keywords = ["erlang", "distribution", "node", "actor", "otp"]
 categories = ["network-programming", "asynchronous"]
 
 [dependencies]
-erltf = { path = "../erltf" }
-erltf_serde = { path = "../erltf_serde" }
-edp_client = { path = "../edp_client" }
+erltf = { version = "0.5.0", path = "../erltf" }
+erltf_serde = { version = "0.5.0", path = "../erltf_serde" }
+edp_client = { version = "0.5.0", path = "../edp_client" }
 
 tokio = { workspace = true, default-features = false, features = ["net", "io-util", "time", "sync", "macros", "rt"] }
 thiserror = { workspace = true }
