@@ -19,6 +19,7 @@ use serde::de::{DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess
 use serde::{Deserialize, Deserializer as SerdeDeserializer};
 use std::collections::BTreeMap;
 use std::collections::btree_map;
+use std::sync::OnceLock;
 
 pub fn from_bytes<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T> {
     let term = erltf::decode(bytes).map_err(|e| Error::Erltf(e.into()))?;
@@ -28,6 +29,23 @@ pub fn from_bytes<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T> {
 pub fn from_term<'a, T: Deserialize<'a>>(term: &'a OwnedTerm) -> Result<T> {
     let mut deserializer = Deserializer { term };
     T::deserialize(&mut deserializer)
+}
+
+pub fn from_proplist<'a, T: Deserialize<'a>>(term: &'a OwnedTerm) -> Result<T> {
+    match term {
+        OwnedTerm::List(elements) => {
+            let deserializer = ProplistDeserializer::new(elements);
+            T::deserialize(deserializer)
+        }
+        OwnedTerm::Nil => {
+            let deserializer = ProplistDeserializer::new(&[]);
+            T::deserialize(deserializer)
+        }
+        _ => Err(Error::TypeMismatch {
+            expected: "proplist (list of tuples)".into(),
+            found: format!("{:?}", term),
+        }),
+    }
 }
 
 pub struct Deserializer<'de> {
@@ -534,6 +552,105 @@ impl<'de> VariantAccess<'de> for VariantDeserializer<'de> {
                 expected: "struct variant with 1 map element".into(),
                 found: format!("variant with {} elements", self.rest.len()),
             })
+        }
+    }
+}
+
+pub struct ProplistDeserializer<'de> {
+    elements: &'de [OwnedTerm],
+}
+
+impl<'de> ProplistDeserializer<'de> {
+    pub fn new(elements: &'de [OwnedTerm]) -> Self {
+        ProplistDeserializer { elements }
+    }
+}
+
+impl<'de> SerdeDeserializer<'de> for ProplistDeserializer<'de> {
+    type Error = Error;
+
+    fn deserialize_any<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        visitor.visit_map(ProplistMapAccess {
+            elements: self.elements,
+            index: 0,
+            current_value: ProplistValue::None,
+        })
+    }
+
+    fn deserialize_map<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
+        visitor.visit_map(ProplistMapAccess {
+            elements: self.elements,
+            index: 0,
+            current_value: ProplistValue::None,
+        })
+    }
+
+    fn deserialize_struct<V: Visitor<'de>>(
+        self,
+        _name: &'static str,
+        _fields: &'static [&'static str],
+        visitor: V,
+    ) -> Result<V::Value> {
+        self.deserialize_map(visitor)
+    }
+
+    serde::forward_to_deserialize_any! {
+        bool i8 i16 i32 i64 u8 u16 u32 u64 f32 f64 char str string
+        bytes byte_buf option unit unit_struct newtype_struct seq tuple
+        tuple_struct enum identifier ignored_any
+    }
+}
+
+struct ProplistMapAccess<'de> {
+    elements: &'de [OwnedTerm],
+    index: usize,
+    current_value: ProplistValue<'de>,
+}
+
+enum ProplistValue<'de> {
+    None,
+    Ref(&'de OwnedTerm),
+    BareAtom,
+}
+
+impl<'de> MapAccess<'de> for ProplistMapAccess<'de> {
+    type Error = Error;
+
+    fn next_key_seed<K: DeserializeSeed<'de>>(&mut self, seed: K) -> Result<Option<K::Value>> {
+        while self.index < self.elements.len() {
+            let element = &self.elements[self.index];
+            self.index += 1;
+
+            match element {
+                OwnedTerm::Tuple(t) if t.len() == 2 => {
+                    self.current_value = ProplistValue::Ref(&t[1]);
+                    let mut de = Deserializer { term: &t[0] };
+                    return seed.deserialize(&mut de).map(Some);
+                }
+                OwnedTerm::Atom(_) => {
+                    self.current_value = ProplistValue::BareAtom;
+                    let mut de = Deserializer { term: element };
+                    return seed.deserialize(&mut de).map(Some);
+                }
+                _ => continue,
+            }
+        }
+        Ok(None)
+    }
+
+    fn next_value_seed<V: DeserializeSeed<'de>>(&mut self, seed: V) -> Result<V::Value> {
+        match std::mem::replace(&mut self.current_value, ProplistValue::None) {
+            ProplistValue::Ref(value) => {
+                let mut de = Deserializer { term: value };
+                seed.deserialize(&mut de)
+            }
+            ProplistValue::BareAtom => {
+                static TRUE_TERM: OnceLock<OwnedTerm> = OnceLock::new();
+                let true_term = TRUE_TERM.get_or_init(|| OwnedTerm::Atom(Atom::new("true")));
+                let mut de = Deserializer { term: true_term };
+                seed.deserialize(&mut de)
+            }
+            ProplistValue::None => Err(Error::Message("next_value called without next_key".into())),
         }
     }
 }

@@ -22,7 +22,7 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::mem::discriminant;
 use std::ops::Index;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum OwnedTerm {
@@ -387,6 +387,194 @@ impl OwnedTerm {
                 }
                 None
             }
+            _ => None,
+        }
+    }
+
+    pub fn is_proplist(&self) -> bool {
+        match self {
+            OwnedTerm::List(elements) => elements.iter().all(Self::is_proplist_element),
+            OwnedTerm::Nil => true,
+            _ => false,
+        }
+    }
+
+    pub fn is_proplist_element(element: &OwnedTerm) -> bool {
+        match element {
+            OwnedTerm::Tuple(elements) if elements.len() == 2 => {
+                matches!(
+                    &elements[0],
+                    OwnedTerm::Atom(_) | OwnedTerm::Binary(_) | OwnedTerm::String(_)
+                )
+            }
+            OwnedTerm::Atom(_) => true,
+            _ => false,
+        }
+    }
+
+    pub fn normalize_proplist(&self) -> Result<OwnedTerm, TermConversionError> {
+        match self {
+            OwnedTerm::List(elements) => {
+                let normalized: Vec<OwnedTerm> = elements
+                    .iter()
+                    .filter_map(|el| match el {
+                        OwnedTerm::Tuple(t) if t.len() == 2 => Some(el.clone()),
+                        OwnedTerm::Atom(a) => Some(OwnedTerm::Tuple(vec![
+                            OwnedTerm::Atom(a.clone()),
+                            OwnedTerm::boolean(true),
+                        ])),
+                        _ => None,
+                    })
+                    .collect();
+                Ok(OwnedTerm::List(normalized))
+            }
+            OwnedTerm::Nil => Ok(OwnedTerm::List(vec![])),
+            _ => Err(TermConversionError::WrongType {
+                expected: "List",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn proplist_to_map(&self) -> Result<OwnedTerm, TermConversionError> {
+        match self {
+            OwnedTerm::List(elements) => {
+                let mut map = BTreeMap::new();
+                for element in elements {
+                    match element {
+                        OwnedTerm::Tuple(t) if t.len() == 2 => {
+                            map.insert(t[0].clone(), t[1].clone());
+                        }
+                        OwnedTerm::Atom(a) => {
+                            map.insert(OwnedTerm::Atom(a.clone()), OwnedTerm::boolean(true));
+                        }
+                        _ => {}
+                    }
+                }
+                Ok(OwnedTerm::Map(map))
+            }
+            OwnedTerm::Map(_) => Ok(self.clone()),
+            OwnedTerm::Nil => Ok(OwnedTerm::Map(BTreeMap::new())),
+            _ => Err(TermConversionError::WrongType {
+                expected: "List or Map",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn map_to_proplist(&self) -> Result<OwnedTerm, TermConversionError> {
+        match self {
+            OwnedTerm::Map(map) => {
+                let elements: Vec<OwnedTerm> = map
+                    .iter()
+                    .map(|(k, v)| OwnedTerm::Tuple(vec![k.clone(), v.clone()]))
+                    .collect();
+                Ok(OwnedTerm::List(elements))
+            }
+            OwnedTerm::List(_) | OwnedTerm::Nil => Ok(self.clone()),
+            _ => Err(TermConversionError::WrongType {
+                expected: "Map or List",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn to_map_recursive(&self) -> Result<OwnedTerm, TermConversionError> {
+        match self {
+            OwnedTerm::List(elements) if elements.is_empty() => Ok(OwnedTerm::List(vec![])),
+            OwnedTerm::List(_) if self.is_proplist() => {
+                let normalized = self.normalize_proplist()?;
+                let map = normalized.proplist_to_map()?;
+                if let OwnedTerm::Map(m) = map {
+                    let mut result = BTreeMap::new();
+                    for (k, v) in m {
+                        result.insert(k, v.to_map_recursive()?);
+                    }
+                    Ok(OwnedTerm::Map(result))
+                } else {
+                    Ok(map)
+                }
+            }
+            OwnedTerm::List(elements) => {
+                let converted: Result<Vec<OwnedTerm>, _> =
+                    elements.iter().map(|v| v.to_map_recursive()).collect();
+                Ok(OwnedTerm::List(converted?))
+            }
+            OwnedTerm::Map(m) => {
+                let mut result = BTreeMap::new();
+                for (k, v) in m {
+                    result.insert(k.clone(), v.to_map_recursive()?);
+                }
+                Ok(OwnedTerm::Map(result))
+            }
+            OwnedTerm::Nil => Ok(OwnedTerm::List(vec![])),
+            _ => Ok(self.clone()),
+        }
+    }
+
+    pub fn atomize_keys(&self) -> Result<OwnedTerm, TermConversionError> {
+        match self {
+            OwnedTerm::List(elements) => {
+                let converted: Vec<OwnedTerm> = elements
+                    .iter()
+                    .filter_map(|el| {
+                        if let OwnedTerm::Tuple(t) = el
+                            && t.len() == 2
+                        {
+                            let key = match &t[0] {
+                                OwnedTerm::Atom(_) => t[0].clone(),
+                                OwnedTerm::Binary(b) => {
+                                    let s = String::from_utf8_lossy(b);
+                                    OwnedTerm::Atom(Atom::new(s.as_ref()))
+                                }
+                                OwnedTerm::String(s) => OwnedTerm::Atom(Atom::new(s)),
+                                _ => return None,
+                            };
+                            Some(OwnedTerm::Tuple(vec![key, t[1].clone()]))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                Ok(OwnedTerm::List(converted))
+            }
+            OwnedTerm::Map(m) => {
+                let mut result = BTreeMap::new();
+                for (k, v) in m {
+                    let key = match k {
+                        OwnedTerm::Atom(_) => k.clone(),
+                        OwnedTerm::Binary(b) => {
+                            let s = String::from_utf8_lossy(b);
+                            OwnedTerm::Atom(Atom::new(s.as_ref()))
+                        }
+                        OwnedTerm::String(s) => OwnedTerm::Atom(Atom::new(s)),
+                        _ => continue,
+                    };
+                    result.insert(key, v.clone());
+                }
+                Ok(OwnedTerm::Map(result))
+            }
+            OwnedTerm::Nil => Ok(OwnedTerm::List(vec![])),
+            _ => Err(TermConversionError::WrongType {
+                expected: "List or Map",
+                actual: self.type_name(),
+            }),
+        }
+    }
+
+    pub fn as_list_wrapped(&self) -> OwnedTerm {
+        match self {
+            OwnedTerm::List(_) | OwnedTerm::Nil => self.clone(),
+            _ => OwnedTerm::List(vec![self.clone()]),
+        }
+    }
+
+    pub fn proplist_iter(&self) -> Option<ProplistIter<'_>> {
+        match self {
+            OwnedTerm::List(elements) => Some(ProplistIter {
+                iter: elements.iter(),
+            }),
+            OwnedTerm::Nil => Some(ProplistIter { iter: [].iter() }),
             _ => None,
         }
     }
@@ -1254,6 +1442,35 @@ impl ExactSizeIterator for OwnedTermIntoIter {
             OwnedTermIntoIter::Vec(iter) => iter.len(),
             OwnedTermIntoIter::Empty => 0,
         }
+    }
+}
+
+pub struct ProplistIter<'a> {
+    iter: std::slice::Iter<'a, OwnedTerm>,
+}
+
+impl<'a> Iterator for ProplistIter<'a> {
+    type Item = (&'a OwnedTerm, &'a OwnedTerm);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for element in self.iter.by_ref() {
+            match element {
+                OwnedTerm::Tuple(t) if t.len() == 2 => {
+                    return Some((&t[0], &t[1]));
+                }
+                OwnedTerm::Atom(_) => {
+                    static TRUE_ATOM: OnceLock<OwnedTerm> = OnceLock::new();
+                    let true_val = TRUE_ATOM.get_or_init(|| OwnedTerm::boolean(true));
+                    return Some((element, true_val));
+                }
+                _ => continue,
+            }
+        }
+        None
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        (0, Some(self.iter.len()))
     }
 }
 
