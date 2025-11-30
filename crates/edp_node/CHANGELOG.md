@@ -1,5 +1,10 @@
 # edp_node Change Log
 
+## v0.9.0 (in development)
+
+(no changes)
+
+
 ## v0.8.0 (Nov 29, 2025)
 
 ### Enhancements
