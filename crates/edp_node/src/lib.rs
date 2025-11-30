@@ -55,7 +55,7 @@ pub use gen_event::{
 };
 pub use gen_server::{CallResult, GenServer, GenServerProcess};
 pub use mailbox::{Mailbox, Message};
-pub use node::Node;
+pub use node::{Node, DEFAULT_RPC_TIMEOUT};
 pub use process::{Process, ProcessHandle};
 pub use registry::ProcessRegistry;
 

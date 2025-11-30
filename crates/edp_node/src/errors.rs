@@ -65,8 +65,8 @@ pub enum Error {
     #[error("EPMD registration failed: {0}")]
     EpmdRegistration(String),
 
-    #[error("RPC timeout")]
-    RpcTimeout,
+    #[error("RPC timeout after {0:?}")]
+    RpcTimeout(Duration),
 
     #[error("RPC cancelled")]
     RpcCancelled,

@@ -1,6 +1,6 @@
 # erltf_serde Change Log
 
-## v0.9.0 (in development)
+## v0.9.0 (Nov 29, 2025)
 
 (no changes)
 

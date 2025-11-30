@@ -1,8 +1,12 @@
 # edp_node Change Log
 
-## v0.9.0 (in development)
+## v0.9.0 (Nov 29, 2025)
 
-(no changes)
+### Enhancements
+
+ * New `rpc_call_with_timeout` and `rpc_call_raw_with_timeout` functions for RPC calls with custom timeout
+ * New default timeout constant, `DEFAULT_RPC_TIMEOUT`, defaults to 10 seconds
+ * `RpcTimeout` error now includes the timeout duration in its message
 
 
 ## v0.8.0 (Nov 29, 2025)

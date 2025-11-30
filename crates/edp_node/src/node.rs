@@ -24,7 +24,10 @@ use erltf::OwnedTerm;
 use erltf::types::{Atom, ExternalPid, ExternalReference};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
+use std::time::Duration;
 use tokio::sync::{Mutex, oneshot};
+
+pub const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
 
 pub struct Node {
     name: Atom,
@@ -503,8 +506,20 @@ impl Node {
         function: &str,
         args: Vec<OwnedTerm>,
     ) -> Result<OwnedTerm> {
+        self.rpc_call_with_timeout(remote_node, module, function, args, DEFAULT_RPC_TIMEOUT)
+            .await
+    }
+
+    pub async fn rpc_call_with_timeout(
+        &self,
+        remote_node: &str,
+        module: &str,
+        function: &str,
+        args: Vec<OwnedTerm>,
+        timeout: Duration,
+    ) -> Result<OwnedTerm> {
         let response = self
-            .rpc_call_raw(remote_node, module, function, args)
+            .rpc_call_raw_with_timeout(remote_node, module, function, args, timeout)
             .await?;
         response.into_rex_response().map_err(Error::from)
     }
@@ -515,6 +530,18 @@ impl Node {
         module: &str,
         function: &str,
         args: Vec<OwnedTerm>,
+    ) -> Result<OwnedTerm> {
+        self.rpc_call_raw_with_timeout(remote_node, module, function, args, DEFAULT_RPC_TIMEOUT)
+            .await
+    }
+
+    pub async fn rpc_call_raw_with_timeout(
+        &self,
+        remote_node: &str,
+        module: &str,
+        function: &str,
+        args: Vec<OwnedTerm>,
+        timeout: Duration,
     ) -> Result<OwnedTerm> {
         let reply_to_pid = self
             .pid_allocator
@@ -556,14 +583,14 @@ impl Node {
             return Err(Error::NodeNotConnected(remote_node.to_string()));
         }
 
-        let response = tokio::time::timeout(std::time::Duration::from_secs(10), rx).await;
+        let response = tokio::time::timeout(timeout, rx).await;
 
         if response.is_err() {
             self.pending_rpcs.remove(&pid_str);
         }
 
         let response = response
-            .map_err(|_| Error::RpcTimeout)?
+            .map_err(|_| Error::RpcTimeout(timeout))?
             .map_err(|_| Error::RpcCancelled)?;
 
         Ok(response)
