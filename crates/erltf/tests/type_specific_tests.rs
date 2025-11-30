@@ -116,6 +116,135 @@ fn test_to_erl_pid_string() {
 }
 
 // ============================================================================
+// from_erl_pid_string Tests (Erlang pid_to_list/1 format)
+// ============================================================================
+
+#[test]
+fn test_from_erl_pid_string_valid() {
+    let node = Atom::new("rabbit@localhost");
+    let pid = ExternalPid::from_erl_pid_string(node.clone(), "<0.208.0>", 5).unwrap();
+
+    assert_eq!(pid.node, node);
+    assert_eq!(pid.id, 208);
+    assert_eq!(pid.serial, 0);
+    assert_eq!(pid.creation, 5);
+}
+
+#[test]
+fn test_from_erl_pid_string_larger_numbers() {
+    let node = Atom::new("test@server");
+    let pid = ExternalPid::from_erl_pid_string(node.clone(), "<0.67890.12345>", 3).unwrap();
+
+    assert_eq!(pid.node, node);
+    assert_eq!(pid.id, 67890);
+    assert_eq!(pid.serial, 12345);
+    assert_eq!(pid.creation, 3);
+}
+
+#[test]
+fn test_from_erl_pid_string_with_whitespace() {
+    let node = Atom::new("test@localhost");
+    let pid = ExternalPid::from_erl_pid_string(node.clone(), "  <0.123.456>  ", 1).unwrap();
+
+    assert_eq!(pid.node, node);
+    assert_eq!(pid.id, 123);
+    assert_eq!(pid.serial, 456);
+    assert_eq!(pid.creation, 1);
+}
+
+#[test]
+fn test_from_erl_pid_string_missing_brackets() {
+    let node = Atom::new("test@localhost");
+    let result = ExternalPid::from_erl_pid_string(node, "0.123.456", 1);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err,
+        erltf::errors::DecodeError::InvalidPidFormat(_)
+    ));
+    assert!(err.to_string().contains("<0.id.serial>"));
+}
+
+#[test]
+fn test_from_erl_pid_string_wrong_part_count() {
+    let node = Atom::new("test@localhost");
+    let result = ExternalPid::from_erl_pid_string(node, "<0.123>", 1);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err,
+        erltf::errors::DecodeError::InvalidPidFormat(_)
+    ));
+    assert!(err.to_string().contains("3 parts"));
+}
+
+#[test]
+fn test_from_erl_pid_string_first_part_not_zero() {
+    let node = Atom::new("test@localhost");
+    let result = ExternalPid::from_erl_pid_string(node, "<1.123.456>", 1);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err,
+        erltf::errors::DecodeError::InvalidPidFormat(_)
+    ));
+    assert!(err.to_string().contains("<0."));
+}
+
+#[test]
+fn test_from_erl_pid_string_non_numeric_id() {
+    let node = Atom::new("test@localhost");
+    let result = ExternalPid::from_erl_pid_string(node, "<0.abc.456>", 1);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err,
+        erltf::errors::DecodeError::InvalidPidFormat(_)
+    ));
+    assert!(err.to_string().contains("Invalid id"));
+}
+
+#[test]
+fn test_from_erl_pid_string_non_numeric_serial() {
+    let node = Atom::new("test@localhost");
+    let result = ExternalPid::from_erl_pid_string(node, "<0.123.xyz>", 1);
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(matches!(
+        err,
+        erltf::errors::DecodeError::InvalidPidFormat(_)
+    ));
+    assert!(err.to_string().contains("Invalid serial"));
+}
+
+#[test]
+fn test_from_erl_pid_string_roundtrip_with_to_erl_pid_string() {
+    let node = Atom::new("rabbit@server");
+    let original = ExternalPid::new(node.clone(), 999, 1234, 5);
+
+    let formatted = original.to_erl_pid_string();
+    let parsed = ExternalPid::from_erl_pid_string(node.clone(), &formatted, 5).unwrap();
+
+    assert_eq!(original, parsed);
+}
+
+#[test]
+fn test_from_erl_pid_string_zero_values() {
+    let node = Atom::new("test@localhost");
+    let pid = ExternalPid::from_erl_pid_string(node.clone(), "<0.0.0>", 0).unwrap();
+
+    assert_eq!(pid.node, node);
+    assert_eq!(pid.id, 0);
+    assert_eq!(pid.serial, 0);
+    assert_eq!(pid.creation, 0);
+}
+
+// ============================================================================
 // ExternalFun Tests
 // ============================================================================
 
