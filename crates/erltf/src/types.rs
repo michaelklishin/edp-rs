@@ -304,6 +304,52 @@ impl ExternalPid {
         format!("<0.{}.{}>", self.id, self.serial)
     }
 
+    /// Parses a PID string in the format used by `erlang:pid_to_list/1`: `<0.{id}.{serial}>`.
+    /// This is the format returned by `to_erl_pid_string`.
+    ///
+    /// The node and creation must be passed in because they cannot be inferred from the input.
+    pub fn from_erl_pid_string(
+        node: Atom,
+        pid_str: &str,
+        creation: u32,
+    ) -> Result<Self, DecodeError> {
+        let trimmed = pid_str.trim();
+
+        if !trimmed.starts_with('<') || !trimmed.ends_with('>') {
+            return Err(DecodeError::InvalidPidFormat(format!(
+                "PID string must be in format <0.id.serial>, got: {}",
+                pid_str
+            )));
+        }
+
+        let inner = &trimmed[1..trimmed.len() - 1];
+        let parts: Vec<&str> = inner.split('.').collect();
+
+        if parts.len() != 3 {
+            return Err(DecodeError::InvalidPidFormat(format!(
+                "PID string must have exactly 3 parts separated by dots, got: {}",
+                pid_str
+            )));
+        }
+
+        // First part should be 0 (indicating local node in Erlang's pid_to_list format)
+        if parts[0] != "0" {
+            return Err(DecodeError::InvalidPidFormat(format!(
+                "PID string must start with <0., got: {}",
+                pid_str
+            )));
+        }
+
+        let id = parts[1].parse::<u32>().map_err(|_| {
+            DecodeError::InvalidPidFormat(format!("Invalid id in PID string: {}", parts[1]))
+        })?;
+        let serial = parts[2].parse::<u32>().map_err(|_| {
+            DecodeError::InvalidPidFormat(format!("Invalid serial in PID string: {}", parts[2]))
+        })?;
+
+        Ok(ExternalPid::new(node, id, serial, creation))
+    }
+
     #[inline]
     #[must_use]
     pub fn to_charlist_term(&self) -> OwnedTerm {
