@@ -14,6 +14,7 @@
 
 use crate::errors::DecodeError;
 use crate::term::OwnedTerm;
+use bytes::Bytes;
 use std::borrow::Borrow;
 use std::fmt;
 use std::ops::Deref;
@@ -246,12 +247,66 @@ impl BigInt {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// Represents an Erlang PID originating from a remote node.
+/// These are easy to get wrong when encoding and decoding
+/// due to the special LOCAL_EXT encoding.
+///
+/// So when a PID is received via LOCAL_EXT encoding (tag 121), the original
+/// raw bytes are preserved in `local_ext_bytes` field to allow for transparent
+/// re-encoding when sending the PID back to the remote node.
+///
+/// N.B.: the `local_ext_bytes` field is excluded from equality, hash, and ordering
+/// comparisons as it nothing but an implementation detail. Two PIDs are equal if their (node, id, serial, creation) match,
+/// regardless of how they were encoded.
+#[derive(Debug, Clone)]
 pub struct ExternalPid {
     pub node: Atom,
     pub id: u32,
     pub serial: u32,
     pub creation: u32,
+    /// If this PID was decoded from LOCAL_EXT, this contains the hash (8 bytes)
+    /// and nested term bytes for transparent re-encoding. The LOCAL_EXT tag
+    /// is added during encoding.
+    ///
+    /// `Bytes` offer zero-copy cloning.
+    pub local_ext_bytes: Option<Bytes>,
+}
+
+impl PartialEq for ExternalPid {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node
+            && self.id == other.id
+            && self.serial == other.serial
+            && self.creation == other.creation
+    }
+}
+
+impl Eq for ExternalPid {}
+
+impl std::hash::Hash for ExternalPid {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.node.hash(state);
+        self.id.hash(state);
+        self.serial.hash(state);
+        self.creation.hash(state);
+    }
+}
+
+impl PartialOrd for ExternalPid {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExternalPid {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (&self.node, self.id, self.serial, self.creation).cmp(&(
+            &other.node,
+            other.id,
+            other.serial,
+            other.creation,
+        ))
+    }
 }
 
 impl ExternalPid {
@@ -262,7 +317,35 @@ impl ExternalPid {
             id,
             serial,
             creation,
+            local_ext_bytes: None,
         }
+    }
+
+    /// Creates a new PID with preserved LOCAL_EXT bytes.
+    ///
+    /// Accepts any type that can be converted to `Bytes` (e.g., `Vec<u8>`, `&[u8]`, `Bytes`).
+    #[inline]
+    pub fn with_local_ext_bytes(
+        node: Atom,
+        id: u32,
+        serial: u32,
+        creation: u32,
+        local_ext_bytes: impl Into<Bytes>,
+    ) -> Self {
+        ExternalPid {
+            node,
+            id,
+            serial,
+            creation,
+            local_ext_bytes: Some(local_ext_bytes.into()),
+        }
+    }
+
+    /// Returns true if this PID's construction originates from a LOCAL_EXT encoding operation.
+    #[inline]
+    #[must_use]
+    pub fn is_local_ext(&self) -> bool {
+        self.local_ext_bytes.is_some()
     }
 
     pub fn from_string(node: Atom, pid_str: &str) -> Result<Self, DecodeError> {
@@ -363,25 +446,135 @@ impl fmt::Display for ExternalPid {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// Represents an Erlang port originating from a remote node.
+///
+/// Like PIDs, ports can be encoded via LOCAL_EXT. The `local_ext_bytes` field
+/// preserves the original encoding for transparent re-encoding.
+///
+/// Note: The `local_ext_bytes` field is excluded from equality, hash, and ordering
+/// comparisons.
+#[derive(Debug, Clone)]
 pub struct ExternalPort {
     pub node: Atom,
     pub id: u64,
     pub creation: u32,
+    /// If this port was decoded from LOCAL_EXT, this contains the hash (8 bytes)
+    /// and nested term bytes for transparent re-encoding.
+    ///
+    /// Uses `Bytes` for efficient zero-copy cloning of frequently-decoded terms.
+    pub local_ext_bytes: Option<Bytes>,
+}
+
+impl PartialEq for ExternalPort {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node && self.id == other.id && self.creation == other.creation
+    }
+}
+
+impl Eq for ExternalPort {}
+
+impl std::hash::Hash for ExternalPort {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.node.hash(state);
+        self.id.hash(state);
+        self.creation.hash(state);
+    }
+}
+
+impl PartialOrd for ExternalPort {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExternalPort {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (&self.node, self.id, self.creation).cmp(&(&other.node, other.id, other.creation))
+    }
 }
 
 impl ExternalPort {
     #[inline]
     pub fn new(node: Atom, id: u64, creation: u32) -> Self {
-        ExternalPort { node, id, creation }
+        ExternalPort {
+            node,
+            id,
+            creation,
+            local_ext_bytes: None,
+        }
+    }
+
+    /// Creates a new port with preserved LOCAL_EXT bytes.
+    ///
+    /// Accepts any type that can be converted to `Bytes` (e.g., `Vec<u8>`, `&[u8]`, `Bytes`).
+    #[inline]
+    pub fn with_local_ext_bytes(
+        node: Atom,
+        id: u64,
+        creation: u32,
+        local_ext_bytes: impl Into<Bytes>,
+    ) -> Self {
+        ExternalPort {
+            node,
+            id,
+            creation,
+            local_ext_bytes: Some(local_ext_bytes.into()),
+        }
+    }
+
+    /// Returns true if this port was decoded from LOCAL_EXT encoding.
+    #[inline]
+    #[must_use]
+    pub fn is_local_ext(&self) -> bool {
+        self.local_ext_bytes.is_some()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord)]
+/// Represents an Erlang reference originating from a remote node.
+///
+/// Like PIDs, references can be encoded via LOCAL_EXT. The `local_ext_bytes` field
+/// preserves the original encoding for transparent re-encoding.
+///
+/// Note: The `local_ext_bytes` field is excluded from equality, hash, and ordering
+/// comparisons.
+#[derive(Debug, Clone)]
 pub struct ExternalReference {
     pub node: Atom,
     pub creation: u32,
     pub ids: Vec<u32>,
+    /// If this reference was decoded from LOCAL_EXT, this contains the hash (8 bytes)
+    /// and nested term bytes for transparent re-encoding.
+    ///
+    /// `Bytes` offer zero-copy cloning.
+    pub local_ext_bytes: Option<Bytes>,
+}
+
+impl PartialEq for ExternalReference {
+    fn eq(&self, other: &Self) -> bool {
+        self.node == other.node && self.creation == other.creation && self.ids == other.ids
+    }
+}
+
+impl Eq for ExternalReference {}
+
+impl std::hash::Hash for ExternalReference {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.node.hash(state);
+        self.creation.hash(state);
+        self.ids.hash(state);
+    }
+}
+
+impl PartialOrd for ExternalReference {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for ExternalReference {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        (&self.node, self.creation, &self.ids).cmp(&(&other.node, other.creation, &other.ids))
+    }
 }
 
 impl ExternalReference {
@@ -391,7 +584,33 @@ impl ExternalReference {
             node,
             creation,
             ids,
+            local_ext_bytes: None,
         }
+    }
+
+    /// Creates a new reference with preserved LOCAL_EXT bytes.
+    ///
+    /// Accepts any type that can be converted to `Bytes` (e.g., `Vec<u8>`, `&[u8]`, `Bytes`).
+    #[inline]
+    pub fn with_local_ext_bytes(
+        node: Atom,
+        creation: u32,
+        ids: Vec<u32>,
+        local_ext_bytes: impl Into<Bytes>,
+    ) -> Self {
+        ExternalReference {
+            node,
+            creation,
+            ids,
+            local_ext_bytes: Some(local_ext_bytes.into()),
+        }
+    }
+
+    /// Returns true if this reference was decoded from LOCAL_EXT encoding.
+    #[inline]
+    #[must_use]
+    pub fn is_local_ext(&self) -> bool {
+        self.local_ext_bytes.is_some()
     }
 }
 

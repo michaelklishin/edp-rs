@@ -16,6 +16,7 @@ pub mod borrowed;
 pub mod decoder;
 pub mod encoder;
 pub mod errors;
+pub mod tags;
 pub mod term;
 pub mod types;
 

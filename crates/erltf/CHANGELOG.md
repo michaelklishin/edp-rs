@@ -1,11 +1,23 @@
 # erltf Change Log
 
-## v0.11.0 (in development)
+## v0.11.0 (Nov 30, 2025)
+
+### Bug Fixes
+
+ * It wasn't possible to "roundtrip" a PID, e.g. during an RPC request-response sequence.
+
+   Due to the `LOCAL_EXT` type tag encoding of PIDs, non-BEAM native implementations must pass
+   around additional context for the encoding to be done correctly (the remote node would recognize the right Erlang process).
+
+   This release stores the original `LOCAL_EXT` bytes for PIDs, ports, and references, and reuses
+   them when encoding back to the remote node in a response.
 
 ### Enhancements
 
- * `ExternalPid::from_local_pid_string` for parsing local pid string references (such as `"<0.123.0>"`)
+ * `ExternalPid::from_erl_pid_string` for parsing local pid string references (such as `"<0.123.0>"`)
    with additional context that is not available in the input string
+
+ * New `tags` module exposing all ETF tag constants
 
 
 ## v0.10.0 (Nov 29, 2025)

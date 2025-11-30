@@ -13,6 +13,12 @@
 // limitations under the License.
 
 use crate::errors::EncodeError;
+use crate::tags::{
+    ATOM_CACHE_REF, ATOM_UTF8_EXT, BINARY_EXT, BIT_BINARY_EXT, DIST_HEADER, EXPORT_EXT,
+    INTEGER_EXT, LARGE_BIG_EXT, LARGE_TUPLE_EXT, LIST_EXT, LOCAL_EXT, MAP_EXT, NEW_FLOAT_EXT,
+    NEW_FUN_EXT, NEW_PID_EXT, NEWER_REFERENCE_EXT, NIL_EXT, SMALL_ATOM_UTF8_EXT, SMALL_BIG_EXT,
+    SMALL_INTEGER_EXT, SMALL_TUPLE_EXT, V4_PORT_EXT, VERSION,
+};
 use crate::term::OwnedTerm;
 use crate::types::{
     Atom, BigInt, ExternalFun, ExternalPid, ExternalPort, ExternalReference, InternalFun,
@@ -20,30 +26,6 @@ use crate::types::{
 use bytes::{BufMut, BytesMut};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::Write;
-
-const VERSION: u8 = 131;
-
-const SMALL_INTEGER_EXT: u8 = 97;
-const INTEGER_EXT: u8 = 98;
-const SMALL_TUPLE_EXT: u8 = 104;
-const LARGE_TUPLE_EXT: u8 = 105;
-const NIL_EXT: u8 = 106;
-const LIST_EXT: u8 = 108;
-const BINARY_EXT: u8 = 109;
-const SMALL_BIG_EXT: u8 = 110;
-const LARGE_BIG_EXT: u8 = 111;
-const NEW_FLOAT_EXT: u8 = 70;
-const ATOM_UTF8_EXT: u8 = 118;
-const SMALL_ATOM_UTF8_EXT: u8 = 119;
-const MAP_EXT: u8 = 116;
-const NEW_PID_EXT: u8 = 88;
-const NEWER_REFERENCE_EXT: u8 = 90;
-const V4_PORT_EXT: u8 = 120;
-const BIT_BINARY_EXT: u8 = 77;
-const EXPORT_EXT: u8 = 113;
-const NEW_FUN_EXT: u8 = 112;
-const DIST_HEADER: u8 = 68;
-const ATOM_CACHE_REF: u8 = 82;
 
 pub fn encode(term: &OwnedTerm) -> Result<Vec<u8>, EncodeError> {
     let estimated_size = term.estimated_encoded_size() + 1;
@@ -271,11 +253,18 @@ fn encode_pid_impl(
     pid: &ExternalPid,
     cache: Option<&HashMap<&Atom, u8>>,
 ) -> Result<(), EncodeError> {
-    buf.put_u8(NEW_PID_EXT);
-    encode_atom_impl(buf, &pid.node, cache)?;
-    buf.put_u32(pid.id);
-    buf.put_u32(pid.serial);
-    buf.put_u32(pid.creation);
+    // If this PID was decoded from LOCAL_EXT, use the preserved bytes
+    // for transparent re-encoding
+    if let Some(ref local_ext_bytes) = pid.local_ext_bytes {
+        buf.put_u8(LOCAL_EXT);
+        buf.put_slice(local_ext_bytes);
+    } else {
+        buf.put_u8(NEW_PID_EXT);
+        encode_atom_impl(buf, &pid.node, cache)?;
+        buf.put_u32(pid.id);
+        buf.put_u32(pid.serial);
+        buf.put_u32(pid.creation);
+    }
     Ok(())
 }
 
@@ -284,10 +273,16 @@ fn encode_port_impl(
     port: &ExternalPort,
     cache: Option<&HashMap<&Atom, u8>>,
 ) -> Result<(), EncodeError> {
-    buf.put_u8(V4_PORT_EXT);
-    encode_atom_impl(buf, &port.node, cache)?;
-    buf.put_u64(port.id);
-    buf.put_u32(port.creation);
+    // Use preserved LOCAL_EXT bytes if available for transparent re-encoding
+    if let Some(ref local_ext_bytes) = port.local_ext_bytes {
+        buf.put_u8(LOCAL_EXT);
+        buf.put_slice(local_ext_bytes);
+    } else {
+        buf.put_u8(V4_PORT_EXT);
+        encode_atom_impl(buf, &port.node, cache)?;
+        buf.put_u64(port.id);
+        buf.put_u32(port.creation);
+    }
     Ok(())
 }
 
@@ -296,16 +291,22 @@ fn encode_reference_impl(
     ref_: &ExternalReference,
     cache: Option<&HashMap<&Atom, u8>>,
 ) -> Result<(), EncodeError> {
-    let len = u16::try_from(ref_.ids.len()).map_err(|_| EncodeError::ReferenceTooLarge {
-        size: ref_.ids.len(),
-    })?;
+    // Use preserved LOCAL_EXT bytes if available for transparent re-encoding
+    if let Some(ref local_ext_bytes) = ref_.local_ext_bytes {
+        buf.put_u8(LOCAL_EXT);
+        buf.put_slice(local_ext_bytes);
+    } else {
+        let len = u16::try_from(ref_.ids.len()).map_err(|_| EncodeError::ReferenceTooLarge {
+            size: ref_.ids.len(),
+        })?;
 
-    buf.put_u8(NEWER_REFERENCE_EXT);
-    buf.put_u16(len);
-    encode_atom_impl(buf, &ref_.node, cache)?;
-    buf.put_u32(ref_.creation);
-    for id in &ref_.ids {
-        buf.put_u32(*id);
+        buf.put_u8(NEWER_REFERENCE_EXT);
+        buf.put_u16(len);
+        encode_atom_impl(buf, &ref_.node, cache)?;
+        buf.put_u32(ref_.creation);
+        for id in &ref_.ids {
+            buf.put_u32(*id);
+        }
     }
     Ok(())
 }

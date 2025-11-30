@@ -179,53 +179,29 @@ fn test_map_ordering_borrowed() {
 
 #[test]
 fn test_reference_ordering() {
-    let ref1 = BorrowedTerm::Reference(ExternalReference {
-        node: Atom::new("node1"),
-        creation: 1,
-        ids: vec![1, 2, 3],
-    });
+    let ref1 =
+        BorrowedTerm::Reference(ExternalReference::new(Atom::new("node1"), 1, vec![1, 2, 3]));
 
-    let ref2 = BorrowedTerm::Reference(ExternalReference {
-        node: Atom::new("node1"),
-        creation: 1,
-        ids: vec![1, 2, 4],
-    });
+    let ref2 =
+        BorrowedTerm::Reference(ExternalReference::new(Atom::new("node1"), 1, vec![1, 2, 4]));
 
     assert_eq!(ref1.cmp(&ref2), Ordering::Less);
 }
 
 #[test]
 fn test_pid_ordering() {
-    let pid1 = BorrowedTerm::Pid(ExternalPid {
-        node: Atom::new("node1"),
-        id: 1,
-        serial: 0,
-        creation: 1,
-    });
+    let pid1 = BorrowedTerm::Pid(ExternalPid::new(Atom::new("node1"), 1, 0, 1));
 
-    let pid2 = BorrowedTerm::Pid(ExternalPid {
-        node: Atom::new("node1"),
-        id: 2,
-        serial: 0,
-        creation: 1,
-    });
+    let pid2 = BorrowedTerm::Pid(ExternalPid::new(Atom::new("node1"), 2, 0, 1));
 
     assert_eq!(pid1.cmp(&pid2), Ordering::Less);
 }
 
 #[test]
 fn test_port_ordering() {
-    let port1 = BorrowedTerm::Port(ExternalPort {
-        node: Atom::new("node1"),
-        id: 1,
-        creation: 1,
-    });
+    let port1 = BorrowedTerm::Port(ExternalPort::new(Atom::new("node1"), 1, 1));
 
-    let port2 = BorrowedTerm::Port(ExternalPort {
-        node: Atom::new("node1"),
-        id: 2,
-        creation: 1,
-    });
+    let port2 = BorrowedTerm::Port(ExternalPort::new(Atom::new("node1"), 2, 1));
 
     assert_eq!(port1.cmp(&port2), Ordering::Less);
 }

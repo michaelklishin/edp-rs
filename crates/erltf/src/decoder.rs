@@ -14,6 +14,14 @@
 
 use crate::borrowed::BorrowedTerm;
 use crate::errors::{ContextualDecodeError, DecodeError, ParsingContext, PathSegment};
+use crate::tags::{
+    ATOM_CACHE_REF, ATOM_EXT, ATOM_UTF8_EXT, BINARY_EXT, BIT_BINARY_EXT, COMPRESSED_EXT,
+    DIST_FRAG_HEADER, DIST_HEADER, EXPORT_EXT, FLOAT_EXT, INTEGER_EXT, LARGE_BIG_EXT,
+    LARGE_TUPLE_EXT, LIST_EXT, LOCAL_EXT, MAP_EXT, NEW_FLOAT_EXT, NEW_FUN_EXT, NEW_PID_EXT,
+    NEW_REFERENCE_EXT, NEWER_REFERENCE_EXT, NIL_EXT, PID_EXT, PORT_EXT, REFERENCE_EXT,
+    SMALL_ATOM_EXT, SMALL_ATOM_UTF8_EXT, SMALL_BIG_EXT, SMALL_INTEGER_EXT, SMALL_TUPLE_EXT,
+    STRING_EXT, V4_PORT_EXT, VERSION,
+};
 use crate::term::OwnedTerm;
 use crate::types::{
     Atom, BigInt, ExternalFun, ExternalPid, ExternalPort, ExternalReference, InternalFun,
@@ -28,46 +36,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::io::Read;
 use std::str;
 
-const VERSION: u8 = 131;
-
 const MAX_ATOM_SIZE: usize = 65535;
 const MAX_LIST_SIZE: usize = 10_000_000;
 const MAX_TUPLE_SIZE: usize = 10_000_000;
 const MAX_MAP_SIZE: usize = 1_000_000;
 const MAX_BINARY_SIZE: usize = 100_000_000;
-
-const SMALL_INTEGER_EXT: u8 = 97;
-const INTEGER_EXT: u8 = 98;
-const FLOAT_EXT: u8 = 99;
-const ATOM_EXT: u8 = 100;
-const REFERENCE_EXT: u8 = 101;
-const PORT_EXT: u8 = 102;
-const PID_EXT: u8 = 103;
-const SMALL_TUPLE_EXT: u8 = 104;
-const LARGE_TUPLE_EXT: u8 = 105;
-const NIL_EXT: u8 = 106;
-const STRING_EXT: u8 = 107;
-const LIST_EXT: u8 = 108;
-const BINARY_EXT: u8 = 109;
-const SMALL_BIG_EXT: u8 = 110;
-const LARGE_BIG_EXT: u8 = 111;
-const NEW_FUN_EXT: u8 = 112;
-const EXPORT_EXT: u8 = 113;
-const NEW_REFERENCE_EXT: u8 = 114;
-const SMALL_ATOM_EXT: u8 = 115;
-const MAP_EXT: u8 = 116;
-const ATOM_UTF8_EXT: u8 = 118;
-const SMALL_ATOM_UTF8_EXT: u8 = 119;
-const V4_PORT_EXT: u8 = 120;
-const LOCAL_EXT: u8 = 121;
-const DIST_HEADER: u8 = 68;
-const DIST_FRAG_HEADER: u8 = 69;
-const NEW_FLOAT_EXT: u8 = 70;
-const BIT_BINARY_EXT: u8 = 77;
-const COMPRESSED_EXT: u8 = 80;
-const ATOM_CACHE_REF: u8 = 82;
-const NEW_PID_EXT: u8 = 88;
-const NEWER_REFERENCE_EXT: u8 = 90;
 
 type NomResult<'a, T> = IResult<&'a [u8], T, NomError<&'a [u8]>>;
 
@@ -373,11 +346,7 @@ fn parse_reference_ext<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<'a, 
     let (input, creation) = be_u8(input)?;
     Ok((
         input,
-        OwnedTerm::Reference(ExternalReference {
-            node,
-            ids: vec![id],
-            creation: creation as u32,
-        }),
+        OwnedTerm::Reference(ExternalReference::new(node, creation as u32, vec![id])),
     ))
 }
 
@@ -392,11 +361,7 @@ fn parse_port_ext<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<'a, Owned
     let (input, creation) = be_u8(input)?;
     Ok((
         input,
-        OwnedTerm::Port(ExternalPort {
-            node,
-            id: id as u64,
-            creation: creation as u32,
-        }),
+        OwnedTerm::Port(ExternalPort::new(node, id as u64, creation as u32)),
     ))
 }
 
@@ -412,12 +377,7 @@ fn parse_pid_ext<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<'a, OwnedT
     let (input, creation) = be_u8(input)?;
     Ok((
         input,
-        OwnedTerm::Pid(ExternalPid {
-            node,
-            id,
-            serial,
-            creation: creation as u32,
-        }),
+        OwnedTerm::Pid(ExternalPid::new(node, id, serial, creation as u32)),
     ))
 }
 
@@ -439,17 +399,49 @@ fn parse_new_reference_ext<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<
     }
     Ok((
         remaining,
-        OwnedTerm::Reference(ExternalReference {
-            node,
-            ids,
-            creation: creation as u32,
-        }),
+        OwnedTerm::Reference(ExternalReference::new(node, creation as u32, ids)),
     ))
 }
 
 fn parse_local_ext<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<'a, OwnedTerm> {
+    // Record the start position to capture the entire LOCAL_EXT encoding
+    let start = input;
     let (input, _hash) = be_u64(input)?;
-    parse_term(input, cache)
+    let (remaining, term) = parse_term(input, cache)?;
+
+    // Calculate how many bytes the nested term consumed
+    let nested_len = input.len() - remaining.len();
+    // LOCAL_EXT bytes = hash (8) + nested term (tag is added during encoding)
+    let local_ext_bytes_len = 8 + nested_len;
+    let local_ext_bytes = start[..local_ext_bytes_len].to_vec();
+
+    // Preserve LOCAL_EXT bytes for PIDs, ports, and references for transparent re-encoding
+    let result = match term {
+        OwnedTerm::Pid(pid) => OwnedTerm::Pid(ExternalPid::with_local_ext_bytes(
+            pid.node,
+            pid.id,
+            pid.serial,
+            pid.creation,
+            local_ext_bytes,
+        )),
+        OwnedTerm::Port(port) => OwnedTerm::Port(ExternalPort::with_local_ext_bytes(
+            port.node,
+            port.id,
+            port.creation,
+            local_ext_bytes,
+        )),
+        OwnedTerm::Reference(reference) => {
+            OwnedTerm::Reference(ExternalReference::with_local_ext_bytes(
+                reference.node,
+                reference.creation,
+                reference.ids,
+                local_ext_bytes,
+            ))
+        }
+        _ => term,
+    };
+
+    Ok((remaining, result))
 }
 
 fn parse_small_integer(input: &[u8]) -> NomResult<'_, OwnedTerm> {

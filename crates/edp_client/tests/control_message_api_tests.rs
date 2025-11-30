@@ -20,20 +20,15 @@ use erltf::types::{Atom, ExternalPid, ExternalReference};
 use test_control_message_builders::ControlMessageBuilder;
 
 fn make_pid(id: u32) -> OwnedTerm {
-    OwnedTerm::Pid(ExternalPid {
-        node: Atom::new("nonode@nohost"),
-        id,
-        serial: 0,
-        creation: 0,
-    })
+    OwnedTerm::Pid(ExternalPid::new(Atom::new("nonode@nohost"), id, 0, 0))
 }
 
 fn make_reference() -> OwnedTerm {
-    OwnedTerm::Reference(ExternalReference {
-        node: Atom::new("nonode@nohost"),
-        creation: 1,
-        ids: vec![1, 2, 3],
-    })
+    OwnedTerm::Reference(ExternalReference::new(
+        Atom::new("nonode@nohost"),
+        1,
+        vec![1, 2, 3],
+    ))
 }
 
 //

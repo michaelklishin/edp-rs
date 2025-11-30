@@ -17,20 +17,20 @@ use erltf::OwnedTerm;
 use erltf::types::{Atom, ExternalPid, ExternalReference};
 
 fn make_pid(id: u32, serial: u32, creation: u32) -> OwnedTerm {
-    OwnedTerm::Pid(ExternalPid {
-        node: Atom::new("nonode@nohost"),
+    OwnedTerm::Pid(ExternalPid::new(
+        Atom::new("nonode@nohost"),
         id,
         serial,
         creation,
-    })
+    ))
 }
 
 fn make_reference() -> OwnedTerm {
-    OwnedTerm::Reference(ExternalReference {
-        node: Atom::new("nonode@nohost"),
-        creation: 1,
-        ids: vec![1, 2, 3],
-    })
+    OwnedTerm::Reference(ExternalReference::new(
+        Atom::new("nonode@nohost"),
+        1,
+        vec![1, 2, 3],
+    ))
 }
 
 //

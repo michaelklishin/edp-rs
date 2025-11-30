@@ -187,7 +187,7 @@ impl Node {
                 match result {
                     Ok((control_msg, payload)) => {
                         let payload_len = payload.as_ref().map(|p| p.len()).unwrap_or(0);
-                        tracing::info!(
+                        tracing::debug!(
                             "Received control message from {}, payload size: {} bytes",
                             remote_node,
                             payload_len
