@@ -1,5 +1,10 @@
 # edp_client Change Log
 
+## v0.10.0 (in development)
+
+(no changes)
+
+
 ## v0.9.0 (Nov 29, 2025)
 
 (no changes)
