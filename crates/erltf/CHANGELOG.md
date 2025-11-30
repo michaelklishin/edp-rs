@@ -1,5 +1,10 @@
 # erltf Change Log
 
+## v0.12.0 (in development)
+
+(no changes yet)
+
+
 ## v0.11.0 (Nov 30, 2025)
 
 ### Bug Fixes
