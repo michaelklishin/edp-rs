@@ -24,7 +24,7 @@ serde_json = "1.0"
 thiserror = "2.0"
 
 # Parsing and data structures
-bytes = "1.9"
+bytes = "1.11"
 nom = "8.0"
 
 # Async runtime
