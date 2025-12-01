@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use erltf::OwnedTerm;
-use erltf::types::{Atom, BigInt, ExternalFun, ExternalPid};
+use erltf::types::{Atom, BigInt, ExternalFun, ExternalPid, InternalFun};
 use erltf::{decode, encode};
 use std::cmp::Ordering;
 
@@ -307,6 +307,26 @@ fn test_decode_erlang_external_fun() {
     let re_encoded = encode(&decoded).unwrap();
     let re_decoded = decode(&re_encoded).unwrap();
     assert_eq!(decoded, re_decoded);
+}
+
+#[test]
+fn test_internal_fun_roundtrip() {
+    let fun = InternalFun::new(
+        2,
+        [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
+        42,
+        2,
+        Atom::new("my_module"),
+        100,
+        200,
+        ExternalPid::new(Atom::new("node@host"), 1, 2, 3),
+        vec![OwnedTerm::Integer(10), OwnedTerm::Atom(Atom::new("test"))],
+    );
+    let term = OwnedTerm::InternalFun(Box::new(fun));
+
+    let encoded = encode(&term).unwrap();
+    let decoded = decode(&encoded).unwrap();
+    assert_eq!(term, decoded);
 }
 
 // ============================================================================

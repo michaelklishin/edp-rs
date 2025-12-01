@@ -251,13 +251,17 @@ impl BigInt {
 /// These are easy to get wrong when encoding and decoding
 /// due to the special LOCAL_EXT encoding.
 ///
-/// So when a PID is received via LOCAL_EXT encoding (tag 121), the original
-/// raw bytes are preserved in `local_ext_bytes` field to allow for transparent
-/// re-encoding when sending the PID back to the remote node.
+/// When a PID is received via LOCAL_EXT, the original raw bytes are preserved
+/// in `local_ext_bytes` to allow for transparent re-encoding when sending the
+/// PID back to the remote node. LOCAL_EXT contains an opaque 8-byte hash that
+/// cannot be reconstructed from the parsed fields.
+///
+/// NEW_PID_EXT does NOT need raw bytes preserved because it can be exactly
+/// reconstructed from (node, id, serial, creation).
 ///
 /// N.B.: the `local_ext_bytes` field is excluded from equality, hash, and ordering
-/// comparisons as it nothing but an implementation detail. Two PIDs are equal if their (node, id, serial, creation) match,
-/// regardless of how they were encoded.
+/// comparisons as it is nothing but an implementation detail. Two PIDs are equal
+/// if their (node, id, serial, creation) match, regardless of how they were encoded.
 #[derive(Debug, Clone)]
 pub struct ExternalPid {
     pub node: Atom,
@@ -265,8 +269,7 @@ pub struct ExternalPid {
     pub serial: u32,
     pub creation: u32,
     /// If this PID was decoded from LOCAL_EXT, this contains the hash (8 bytes)
-    /// and nested term bytes for transparent re-encoding. The LOCAL_EXT tag
-    /// is added during encoding.
+    /// and nested term bytes for transparent re-encoding.
     ///
     /// `Bytes` offer zero-copy cloning.
     pub local_ext_bytes: Option<Bytes>,
@@ -341,7 +344,7 @@ impl ExternalPid {
         }
     }
 
-    /// Returns true if this PID's construction originates from a LOCAL_EXT encoding operation.
+    /// Returns true if this PID was decoded from LOCAL_EXT format.
     #[inline]
     #[must_use]
     pub fn is_local_ext(&self) -> bool {

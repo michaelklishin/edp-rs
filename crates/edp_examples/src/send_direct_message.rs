@@ -38,8 +38,8 @@ async fn main() -> Result<()> {
         eprintln!("  erl -name foo@localhost -setcookie monster");
         eprintln!();
         eprintln!("Common registered processes:");
-        eprintln!("  - Erlang shell: 'shell' (only on interactive erl nodes)");
-        eprintln!("  - RabbitMQ: 'rabbit', 'rabbit_node_monitor', etc.");
+        eprintln!("  * Erlang shell: 'shell' (only on interactive erl nodes)");
+        eprintln!("  * RabbitMQ: 'rabbit', 'rabbit_node_monitor', etc.");
         process::exit(1);
     }
 
@@ -87,7 +87,7 @@ async fn main() -> Result<()> {
     match result {
         Ok(response) => {
             println!(
-                "Sent message '{}' to registered process '{}' - RPC response: {:?}",
+                "Sent message '{}' to registered process '{}', RPC response: {:?}",
                 message_text,
                 target_process.as_str(),
                 response

@@ -12,13 +12,121 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use erltf::OwnedTerm;
-use erltf::types::Atom;
-use erltf::{decode, encode};
+use erltf::types::{
+    Atom, BigInt, ExternalFun, ExternalPid, ExternalPort, ExternalReference, InternalFun, Sign,
+};
+use erltf::{OwnedTerm, decode, encode};
 use proptest::prelude::*;
 
 fn arb_atom() -> impl Strategy<Value = Atom> {
     "[a-z][a-z0-9_]{0,20}".prop_map(Atom::new)
+}
+
+fn arb_node_atom() -> impl Strategy<Value = Atom> {
+    "[a-z][a-z0-9_]{0,10}@[a-z][a-z0-9]{0,10}".prop_map(Atom::new)
+}
+
+fn arb_pid() -> impl Strategy<Value = ExternalPid> {
+    (arb_node_atom(), any::<u32>(), any::<u32>(), any::<u32>())
+        .prop_map(|(node, id, serial, creation)| ExternalPid::new(node, id, serial, creation))
+}
+
+fn arb_port() -> impl Strategy<Value = ExternalPort> {
+    (arb_node_atom(), any::<u64>(), any::<u32>())
+        .prop_map(|(node, id, creation)| ExternalPort::new(node, id, creation))
+}
+
+fn arb_reference() -> impl Strategy<Value = ExternalReference> {
+    (
+        arb_node_atom(),
+        any::<u32>(),
+        prop::collection::vec(any::<u32>(), 1..5),
+    )
+        .prop_map(|(node, creation, ids)| ExternalReference::new(node, creation, ids))
+}
+
+fn arb_improper_list_tail() -> impl Strategy<Value = OwnedTerm> {
+    prop_oneof![
+        any::<i32>().prop_map(|v| OwnedTerm::Integer(v as i64)),
+        arb_atom().prop_map(OwnedTerm::Atom),
+        prop::collection::vec(any::<u8>(), 0..50).prop_map(OwnedTerm::Binary),
+    ]
+}
+
+fn arb_improper_list() -> impl Strategy<Value = OwnedTerm> {
+    (
+        prop::collection::vec(any::<i32>(), 1..10),
+        arb_improper_list_tail(),
+    )
+        .prop_map(|(elements, tail)| OwnedTerm::ImproperList {
+            elements: elements
+                .into_iter()
+                .map(|i| OwnedTerm::Integer(i as i64))
+                .collect(),
+            tail: Box::new(tail),
+        })
+}
+
+fn arb_bit_binary() -> impl Strategy<Value = OwnedTerm> {
+    (prop::collection::vec(any::<u8>(), 1..100), 1u8..8u8)
+        .prop_map(|(bytes, bits)| OwnedTerm::BitBinary { bytes, bits })
+}
+
+fn arb_bigint() -> impl Strategy<Value = BigInt> {
+    (prop::bool::ANY, prop::collection::vec(any::<u8>(), 1..50)).prop_map(|(positive, digits)| {
+        let sign = if positive {
+            Sign::Positive
+        } else {
+            Sign::Negative
+        };
+        BigInt::new(sign, digits)
+    })
+}
+
+fn arb_external_fun() -> impl Strategy<Value = ExternalFun> {
+    (arb_atom(), arb_atom(), any::<u8>())
+        .prop_map(|(module, function, arity)| ExternalFun::new(module, function, arity))
+}
+
+fn arb_free_var() -> impl Strategy<Value = OwnedTerm> {
+    prop_oneof![
+        any::<i32>().prop_map(|v| OwnedTerm::Integer(v as i64)),
+        arb_atom().prop_map(OwnedTerm::Atom),
+        prop::collection::vec(any::<u8>(), 0..20).prop_map(OwnedTerm::Binary),
+    ]
+}
+
+fn arb_internal_fun() -> impl Strategy<Value = InternalFun> {
+    (
+        any::<u8>(),
+        prop::array::uniform16(any::<u8>()),
+        any::<u32>(),
+        0u32..5u32,
+        arb_atom(),
+        // old_index and old_uniq must fit in i32 for INTEGER_EXT encoding
+        0u32..(i32::MAX as u32),
+        0u32..(i32::MAX as u32),
+        arb_pid(),
+    )
+        .prop_flat_map(
+            |(arity, uniq, index, num_free, module, old_index, old_uniq, pid)| {
+                prop::collection::vec(arb_free_var(), num_free as usize).prop_map(
+                    move |free_vars| {
+                        InternalFun::new(
+                            arity,
+                            uniq,
+                            index,
+                            num_free,
+                            module.clone(),
+                            old_index,
+                            old_uniq,
+                            pid.clone(),
+                            free_vars,
+                        )
+                    },
+                )
+            },
+        )
 }
 
 fn arb_simple_term() -> impl Strategy<Value = OwnedTerm> {
@@ -73,6 +181,84 @@ proptest! {
         let encoded = encode(&term).unwrap();
         let decoded = decode(&encoded).unwrap();
         prop_assert_eq!(term, decoded);
+    }
+
+    #[test]
+    fn test_prop_roundtrip_pid(pid in arb_pid()) {
+        let term = OwnedTerm::Pid(pid);
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_port(port in arb_port()) {
+        let term = OwnedTerm::Port(port);
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_reference(reference in arb_reference()) {
+        let term = OwnedTerm::Reference(reference);
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_improper_list(term in arb_improper_list()) {
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_bit_binary(term in arb_bit_binary()) {
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_bigint(bigint in arb_bigint()) {
+        let term = OwnedTerm::BigInt(bigint);
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_external_fun(fun in arb_external_fun()) {
+        let term = OwnedTerm::ExternalFun(fun);
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
+    }
+
+    #[test]
+    fn test_prop_roundtrip_internal_fun(fun in arb_internal_fun()) {
+        let term = OwnedTerm::InternalFun(Box::new(fun));
+        let encoded = encode(&term).unwrap();
+        let decoded = decode(&encoded).unwrap();
+        let re_encoded = encode(&decoded).unwrap();
+        prop_assert_eq!(term, decoded);
+        prop_assert_eq!(encoded, re_encoded, "byte-level round-trip must be identical");
     }
 
     #[test]

@@ -253,11 +253,11 @@ fn encode_pid_impl(
     pid: &ExternalPid,
     cache: Option<&HashMap<&Atom, u8>>,
 ) -> Result<(), EncodeError> {
-    // If this PID was decoded from LOCAL_EXT, use the preserved bytes
-    // for transparent re-encoding
-    if let Some(ref local_ext_bytes) = pid.local_ext_bytes {
+    // If this PID was decoded from LOCAL_EXT, use the preserved bytes for transparent re-encoding.
+    // Otherwise, encode as NEW_PID_EXT (which can be exactly reconstructed from parsed fields).
+    if let Some(local_bytes) = &pid.local_ext_bytes {
         buf.put_u8(LOCAL_EXT);
-        buf.put_slice(local_ext_bytes);
+        buf.put_slice(local_bytes);
     } else {
         buf.put_u8(NEW_PID_EXT);
         encode_atom_impl(buf, &pid.node, cache)?;

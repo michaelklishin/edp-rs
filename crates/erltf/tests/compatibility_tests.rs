@@ -332,21 +332,36 @@ fn test_local_ext_reference_equality_ignores_local_ext_bytes() {
 }
 
 #[test]
-fn test_non_local_ext_pid_has_is_local_ext_false() {
+fn test_new_pid_ext_round_trip() {
+    // A PID constructed without decoding should have no raw bytes
     let regular_pid = ExternalPid::new(Atom::new("node@host"), 1, 0, 1);
     assert!(
         !regular_pid.is_local_ext(),
         "Regularly constructed PID should have is_local_ext() == false"
     );
 
-    // Encode and decode a regular PID - should still have is_local_ext false
+    // Encode and decode a regular PID - NEW_PID_EXT doesn't preserve raw bytes
+    // because it can be exactly reconstructed from parsed fields
     let encoded = encode(&OwnedTerm::Pid(regular_pid.clone())).unwrap();
     let decoded = decode(&encoded).unwrap();
 
     if let OwnedTerm::Pid(decoded_pid) = decoded {
+        // NEW_PID_EXT does not preserve raw bytes (unlike LOCAL_EXT)
+        // because it can be exactly reconstructed from (node, id, serial, creation)
         assert!(
             !decoded_pid.is_local_ext(),
-            "PID decoded from non-LOCAL_EXT encoding should have is_local_ext() == false"
+            "PID decoded from NEW_PID_EXT should not be local_ext"
+        );
+        // Ensure PIDs are equal
+        assert_eq!(
+            regular_pid, decoded_pid,
+            "PIDs should be equal after round-trip"
+        );
+        // Verify round-trip produces identical bytes
+        let re_encoded = encode(&OwnedTerm::Pid(decoded_pid)).unwrap();
+        assert_eq!(
+            encoded, re_encoded,
+            "Round-trip should produce identical bytes"
         );
     } else {
         panic!("Expected Pid");

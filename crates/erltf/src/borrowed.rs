@@ -64,33 +64,19 @@ impl<'a> BorrowedTerm<'a> {
             },
             BorrowedTerm::String(s) => OwnedTerm::String(s.to_string()),
             BorrowedTerm::List(elements) => {
-                let mut owned = Vec::with_capacity(elements.len());
-                for e in elements {
-                    owned.push(e.to_owned());
-                }
-                OwnedTerm::List(owned)
+                OwnedTerm::List(elements.iter().map(Self::to_owned).collect())
             }
-            BorrowedTerm::ImproperList { elements, tail } => {
-                let mut owned = Vec::with_capacity(elements.len());
-                for e in elements {
-                    owned.push(e.to_owned());
-                }
-                OwnedTerm::ImproperList {
-                    elements: owned,
-                    tail: Box::new(tail.as_ref().to_owned()),
-                }
-            }
+            BorrowedTerm::ImproperList { elements, tail } => OwnedTerm::ImproperList {
+                elements: elements.iter().map(Self::to_owned).collect(),
+                tail: Box::new(tail.as_ref().to_owned()),
+            },
             BorrowedTerm::Map(m) => OwnedTerm::Map(
                 m.iter()
                     .map(|(k, v)| (k.to_owned(), v.to_owned()))
                     .collect(),
             ),
             BorrowedTerm::Tuple(elements) => {
-                let mut owned = Vec::with_capacity(elements.len());
-                for e in elements {
-                    owned.push(e.to_owned());
-                }
-                OwnedTerm::Tuple(owned)
+                OwnedTerm::Tuple(elements.iter().map(Self::to_owned).collect())
             }
             BorrowedTerm::BigInt(b) => OwnedTerm::BigInt(b.clone()),
             BorrowedTerm::ExternalFun(f) => OwnedTerm::ExternalFun(f.clone()),

@@ -1431,6 +1431,23 @@ impl Hash for OwnedTerm {
     }
 }
 
+/// Returns the Erlang type ordering value for a term.
+/// Erlang ordering: numbers < atoms < references < funs < ports < pids < tuples < maps < lists < binaries
+const fn term_type_order(t: &OwnedTerm) -> u8 {
+    match t {
+        OwnedTerm::Integer(_) | OwnedTerm::BigInt(_) | OwnedTerm::Float(_) => 0,
+        OwnedTerm::Atom(_) => 1,
+        OwnedTerm::Reference(_) => 2,
+        OwnedTerm::ExternalFun(_) | OwnedTerm::InternalFun(_) => 3,
+        OwnedTerm::Port(_) => 4,
+        OwnedTerm::Pid(_) => 5,
+        OwnedTerm::Tuple(_) => 6,
+        OwnedTerm::Map(_) => 7,
+        OwnedTerm::Nil | OwnedTerm::List(_) | OwnedTerm::ImproperList { .. } => 8,
+        OwnedTerm::Binary(_) | OwnedTerm::BitBinary { .. } | OwnedTerm::String(_) => 9,
+    }
+}
+
 impl Eq for OwnedTerm {}
 
 impl Ord for OwnedTerm {
@@ -1446,22 +1463,7 @@ impl Ord for OwnedTerm {
             }
         }
 
-        let type_order = |t: &OwnedTerm| -> u8 {
-            match t {
-                OwnedTerm::Integer(_) | OwnedTerm::BigInt(_) | OwnedTerm::Float(_) => 0,
-                OwnedTerm::Atom(_) => 1,
-                OwnedTerm::Reference(_) => 2,
-                OwnedTerm::ExternalFun(_) | OwnedTerm::InternalFun(_) => 3,
-                OwnedTerm::Port(_) => 4,
-                OwnedTerm::Pid(_) => 5,
-                OwnedTerm::Tuple(_) => 6,
-                OwnedTerm::Map(_) => 7,
-                OwnedTerm::Nil | OwnedTerm::List(_) | OwnedTerm::ImproperList { .. } => 8,
-                OwnedTerm::Binary(_) | OwnedTerm::BitBinary { .. } | OwnedTerm::String(_) => 9,
-            }
-        };
-
-        match type_order(self).cmp(&type_order(other)) {
+        match term_type_order(self).cmp(&term_type_order(other)) {
             Ordering::Equal => match (self, other) {
                 (OwnedTerm::Integer(a), OwnedTerm::Integer(b)) => a.cmp(b),
                 (OwnedTerm::Integer(a), OwnedTerm::BigInt(b)) => compare_int_bigint(*a, b),

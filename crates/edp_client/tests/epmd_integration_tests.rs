@@ -78,7 +78,7 @@ async fn test_epmd_register_and_lookup() {
         }
         Err(e) => {
             println!(
-                "Node registration failed (this is expected behavior - EPMD requires persistent connection): {}",
+                "Node registration failed (this is expected behavior: EPMD requires persistent connection): {}",
                 e
             );
             println!("Error: {}", e);

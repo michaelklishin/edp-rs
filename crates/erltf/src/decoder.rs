@@ -477,8 +477,7 @@ fn parse_atom_latin1(input: &[u8]) -> NomResult<'_, OwnedTerm> {
     }
     let (input, bytes) = take(len as usize)(input)?;
     let name = str::from_utf8(bytes)
-        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?
-        .to_string();
+        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?;
     Ok((input, OwnedTerm::Atom(Atom::new(name))))
 }
 
@@ -489,8 +488,7 @@ fn parse_atom_utf8(input: &[u8]) -> NomResult<'_, OwnedTerm> {
     }
     let (input, bytes) = take(len as usize)(input)?;
     let name = str::from_utf8(bytes)
-        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?
-        .to_string();
+        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?;
     Ok((input, OwnedTerm::Atom(Atom::new(name))))
 }
 
@@ -501,8 +499,7 @@ fn parse_small_atom_utf8(input: &[u8]) -> NomResult<'_, OwnedTerm> {
     }
     let (input, bytes) = take(len as usize)(input)?;
     let name = str::from_utf8(bytes)
-        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?
-        .to_string();
+        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?;
     Ok((input, OwnedTerm::Atom(Atom::new(name))))
 }
 
@@ -513,8 +510,7 @@ fn parse_small_atom_latin1(input: &[u8]) -> NomResult<'_, OwnedTerm> {
     }
     let (input, bytes) = take(len as usize)(input)?;
     let name = str::from_utf8(bytes)
-        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?
-        .to_string();
+        .map_err(|_| nom::Err::Failure(NomError::new(input, ErrorKind::Char)))?;
     Ok((input, OwnedTerm::Atom(Atom::new(name))))
 }
 
@@ -727,6 +723,8 @@ fn parse_new_pid<'a>(input: &'a [u8], cache: &AtomCache) -> NomResult<'a, OwnedT
     let (input, serial) = be_u32(input)?;
     let (input, creation) = be_u32(input)?;
 
+    // NEW_PID_EXT doesn't need raw bytes preserved: its fields are sufficient
+    // for precisely reconstructing the term.
     Ok((
         input,
         OwnedTerm::Pid(ExternalPid::new(node, id, serial, creation)),

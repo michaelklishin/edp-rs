@@ -2,7 +2,17 @@
 
 ## v0.12.0 (in development)
 
-(no changes yet)
+### Bug Fixes
+
+ * More revisions to external PID roundtrips
+
+### Enhancements
+
+ * Atom decoding now performs fewer allocations
+
+### Test Coverage
+
+ * Property-based tests for `BitBinary`, `BigInt`, `ExternalFun`, `InternalFun`, and `ImproperList`
 
 
 ## v0.11.0 (Nov 30, 2025)

@@ -48,7 +48,7 @@ fn build_cli() -> Command {
             Arg::new("quiet")
                 .short('q')
                 .long("quiet")
-                .help("Quiet mode - minimal output")
+                .help("Quiet mode, minimal output")
                 .action(clap::ArgAction::SetTrue),
         )
         .subcommand(Command::new("listeners").about("List all listeners on the node"))
