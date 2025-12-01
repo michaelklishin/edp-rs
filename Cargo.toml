@@ -48,7 +48,7 @@ bitflags = "2.6"
 
 # Testing
 proptest = "1.5"
-criterion = "0.5"
+criterion = "0.8"
 
 [profile.release]
 opt-level = 3
