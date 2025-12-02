@@ -52,6 +52,114 @@ pub enum OwnedTerm {
     Nil,
 }
 
+/// Provides unified key-value access over both Erlang maps and proplists.
+///
+/// # Example
+/// ```
+/// use erltf::{OwnedTerm, KeyValueAccess};
+/// use std::collections::BTreeMap;
+///
+/// // Works with maps
+/// let map = OwnedTerm::map(BTreeMap::from([
+///     (OwnedTerm::atom("name"), OwnedTerm::atom("value"))
+/// ]));
+/// assert_eq!(map.kv_get_atom_string("name"), Some("value".to_string()));
+///
+/// // Works with proplists
+/// let proplist = OwnedTerm::list(vec![
+///     OwnedTerm::Tuple(vec![OwnedTerm::atom("name"), OwnedTerm::atom("value")])
+/// ]);
+/// assert_eq!(proplist.kv_get_atom_string("name"), Some("value".to_string()));
+/// ```
+pub trait KeyValueAccess {
+    /// Retrieve the value associated with an atom key, returning the raw term
+    fn kv_get(&self, key: &str) -> Option<&OwnedTerm>;
+
+    /// Retrieve an i64 value by key
+    fn kv_get_i64(&self, key: &str) -> Option<i64> {
+        self.kv_get(key).and_then(|t| t.as_integer())
+    }
+
+    /// Retrieve an i64 value by key or return the default if the key is missing
+    fn kv_get_i64_or(&self, key: &str, default: i64) -> i64 {
+        self.kv_get_i64(key).unwrap_or(default)
+    }
+
+    /// Retrieve a boolean value by key
+    fn kv_get_bool(&self, key: &str) -> Option<bool> {
+        self.kv_get(key).and_then(|t| t.as_bool())
+    }
+
+    /// Retrieve a boolean value by key, or return the default if the key is missing
+    fn kv_get_bool_or(&self, key: &str, default: bool) -> bool {
+        self.kv_get_bool(key).unwrap_or(default)
+    }
+
+    /// Retrieve an atom value by key
+    fn kv_get_atom(&self, key: &str) -> Option<&Atom> {
+        self.kv_get(key).and_then(|t| t.as_atom())
+    }
+
+    /// Retrieve an atom value as a string by key
+    fn kv_get_atom_string(&self, key: &str) -> Option<String> {
+        self.kv_get_atom(key).map(|a| a.to_string())
+    }
+
+    /// Retrieve an atom value as a string by key or return the default if the key is missing
+    fn kv_get_atom_string_or(&self, key: &str, default: &str) -> String {
+        self.kv_get_atom_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    /// Retrieve a string value by key
+    fn kv_get_string(&self, key: &str) -> Option<String> {
+        self.kv_get(key).and_then(|t| t.as_erlang_string())
+    }
+
+    /// Retrieve a string value by key or return the default if the key is missing
+    fn kv_get_string_or(&self, key: &str, default: &str) -> String {
+        self.kv_get_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    /// Retrieve a PID value by key
+    fn kv_get_pid(&self, key: &str) -> Option<&ExternalPid> {
+        self.kv_get(key).and_then(|t| t.as_pid())
+    }
+
+    /// Retrieve a PID value as a formatted string by key
+    fn kv_get_pid_string(&self, key: &str) -> Option<String> {
+        self.kv_get_pid(key).map(|p| p.to_string())
+    }
+
+    /// Retrieve a PID value as a formatted string by key or return the default if the key is missing
+    fn kv_get_pid_string_or(&self, key: &str, default: &str) -> String {
+        self.kv_get_pid_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    /// Retrieve an MFA value as a formatted string by key
+    fn kv_get_mfa_string(&self, key: &str) -> Option<String> {
+        self.kv_get(key).and_then(|t| t.format_as_mfa())
+    }
+
+    /// Retrieve an MFA value as a formatted string by key or return the default if the key is missing
+    fn kv_get_mfa_string_or(&self, key: &str, default: &str) -> String {
+        self.kv_get_mfa_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+}
+
+impl KeyValueAccess for OwnedTerm {
+    fn kv_get(&self, key: &str) -> Option<&OwnedTerm> {
+        match self {
+            OwnedTerm::Map(_) => self.map_get_atom_key(key),
+            OwnedTerm::List(_) => self.proplist_get_atom_key(key),
+            _ => None,
+        }
+    }
+}
+
 impl OwnedTerm {
     pub fn atom<S: AsRef<str>>(name: S) -> Self {
         OwnedTerm::Atom(Atom::new(name))
@@ -688,6 +796,81 @@ impl OwnedTerm {
         }
     }
 
+    #[inline]
+    pub fn map_get_i64(&self, key: &str) -> Option<i64> {
+        self.map_get_atom_key(key).and_then(|t| t.as_integer())
+    }
+
+    #[inline]
+    pub fn map_get_i64_or(&self, key: &str, default: i64) -> i64 {
+        self.map_get_i64(key).unwrap_or(default)
+    }
+
+    #[inline]
+    pub fn map_get_bool(&self, key: &str) -> Option<bool> {
+        self.map_get_atom_key(key).and_then(|t| t.as_bool())
+    }
+
+    #[inline]
+    pub fn map_get_bool_or(&self, key: &str, default: bool) -> bool {
+        self.map_get_bool(key).unwrap_or(default)
+    }
+
+    #[inline]
+    pub fn map_get_atom(&self, key: &str) -> Option<&Atom> {
+        self.map_get_atom_key(key).and_then(|t| t.as_atom())
+    }
+
+    #[inline]
+    pub fn map_get_string(&self, key: &str) -> Option<String> {
+        self.map_get_atom_key(key)
+            .and_then(|t| t.as_erlang_string())
+    }
+
+    #[inline]
+    pub fn map_get_string_or(&self, key: &str, default: &str) -> String {
+        self.map_get_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    #[inline]
+    pub fn map_get_pid(&self, key: &str) -> Option<&ExternalPid> {
+        self.map_get_atom_key(key).and_then(|t| t.as_pid())
+    }
+
+    #[inline]
+    pub fn map_get_atom_string(&self, key: &str) -> Option<String> {
+        self.map_get_atom(key).map(|a| a.to_string())
+    }
+
+    #[inline]
+    pub fn map_get_atom_string_or(&self, key: &str, default: &str) -> String {
+        self.map_get_atom_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    #[inline]
+    pub fn map_get_pid_string(&self, key: &str) -> Option<String> {
+        self.map_get_pid(key).map(|p| p.to_string())
+    }
+
+    #[inline]
+    pub fn map_get_pid_string_or(&self, key: &str, default: &str) -> String {
+        self.map_get_pid_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
+    #[inline]
+    pub fn map_get_mfa_string(&self, key: &str) -> Option<String> {
+        self.map_get_atom_key(key).and_then(|t| t.format_as_mfa())
+    }
+
+    #[inline]
+    pub fn map_get_mfa_string_or(&self, key: &str, default: &str) -> String {
+        self.map_get_mfa_string(key)
+            .unwrap_or_else(|| default.to_string())
+    }
+
     pub fn as_erlang_string(&self) -> Option<String> {
         match self {
             OwnedTerm::List(integers) => {
@@ -912,6 +1095,12 @@ impl OwnedTerm {
     #[inline]
     pub fn proplist_get_pid_string(&self, key: &str) -> Option<String> {
         self.proplist_get_pid(key).map(|p| p.to_string())
+    }
+
+    #[inline]
+    pub fn proplist_get_pid_string_or(&self, key: &str, default: &str) -> String {
+        self.proplist_get_pid_string(key)
+            .unwrap_or_else(|| default.to_string())
     }
 
     #[inline]

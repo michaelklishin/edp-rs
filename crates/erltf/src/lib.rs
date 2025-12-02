@@ -28,7 +28,7 @@ pub use encoder::{
 pub use errors::{
     ContextualDecodeError, DecodeError, EncodeError, Error, ParsingContext, PathSegment, Result,
 };
-pub use term::OwnedTerm;
+pub use term::{KeyValueAccess, OwnedTerm};
 pub use types::{Atom, BigInt, ExternalPid, ExternalPort, ExternalReference, Mfa, Sign};
 
 #[macro_export]

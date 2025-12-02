@@ -13,95 +13,74 @@
 // limitations under the License.
 
 use erltf::OwnedTerm;
-use erltf::types::Atom;
+use erltf::{erl_atom, erl_int, erl_list, erl_map, erl_tuple};
 use std::collections::BTreeMap;
 
 fn make_proplist() -> OwnedTerm {
-    OwnedTerm::List(vec![
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("name")),
-            OwnedTerm::String("Alice".to_string()),
-        ]),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("age")),
-            OwnedTerm::Integer(30),
-        ]),
-    ])
+    erl_list![
+        erl_tuple![erl_atom!("name"), OwnedTerm::String("Alice".to_string())],
+        erl_tuple![erl_atom!("age"), erl_int!(30)]
+    ]
 }
 
 #[test]
 fn test_is_proplist_valid() {
-    let proplist = make_proplist();
-    assert!(proplist.is_proplist());
+    assert!(make_proplist().is_proplist());
 }
 
 #[test]
 fn test_is_proplist_empty() {
-    let empty = OwnedTerm::List(vec![]);
-    assert!(empty.is_proplist());
+    assert!(erl_list![].is_proplist());
     assert!(OwnedTerm::Nil.is_proplist());
 }
 
 #[test]
 fn test_is_proplist_with_bare_atoms() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Atom(Atom::new("debug")),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("level")),
-            OwnedTerm::Integer(5),
-        ]),
-    ]);
+    let proplist = erl_list![
+        erl_atom!("debug"),
+        erl_tuple![erl_atom!("level"), erl_int!(5)]
+    ];
     assert!(proplist.is_proplist());
 }
 
 #[test]
 fn test_is_proplist_with_binary_keys() {
-    let proplist = OwnedTerm::List(vec![OwnedTerm::Tuple(vec![
-        OwnedTerm::Binary(b"key".to_vec()),
-        OwnedTerm::Integer(1),
-    ])]);
+    let proplist = erl_list![erl_tuple![OwnedTerm::Binary(b"key".to_vec()), erl_int!(1)]];
     assert!(proplist.is_proplist());
 }
 
 #[test]
 fn test_is_proplist_invalid_not_tuples() {
-    let not_proplist = OwnedTerm::List(vec![OwnedTerm::Integer(1), OwnedTerm::Integer(2)]);
+    let not_proplist = erl_list![erl_int!(1), erl_int!(2)];
     assert!(!not_proplist.is_proplist());
 }
 
 #[test]
 fn test_is_proplist_invalid_wrong_tuple_size() {
-    let not_proplist = OwnedTerm::List(vec![OwnedTerm::Tuple(vec![
-        OwnedTerm::Atom(Atom::new("a")),
-        OwnedTerm::Integer(1),
-        OwnedTerm::Integer(2),
-    ])]);
+    let not_proplist = erl_list![erl_tuple![erl_atom!("a"), erl_int!(1), erl_int!(2)]];
     assert!(!not_proplist.is_proplist());
 }
 
 #[test]
 fn test_is_proplist_on_non_list() {
-    assert!(!OwnedTerm::Integer(42).is_proplist());
-    assert!(!OwnedTerm::Map(BTreeMap::new()).is_proplist());
+    assert!(!erl_int!(42).is_proplist());
+    assert!(!erl_map! {}.is_proplist());
 }
 
 #[test]
 fn test_normalize_proplist_expands_bare_atoms() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Atom(Atom::new("debug")),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("level")),
-            OwnedTerm::Integer(5),
-        ]),
-    ]);
+    let proplist = erl_list![
+        erl_atom!("debug"),
+        erl_tuple![erl_atom!("level"), erl_int!(5)]
+    ];
 
     let normalized = proplist.normalize_proplist().unwrap();
 
     if let OwnedTerm::List(elements) = normalized {
         assert_eq!(elements.len(), 2);
         if let OwnedTerm::Tuple(t) = &elements[0] {
-            assert_eq!(t[0], OwnedTerm::Atom(Atom::new("debug")));
-            assert_eq!(t[1], OwnedTerm::Atom(Atom::new("true")));
+            assert_eq!(t[0], erl_atom!("debug"));
+            assert_eq!(t[1], erl_atom!("true"));
         } else {
             panic!("expected tuple");
         }
@@ -112,14 +91,11 @@ fn test_normalize_proplist_expands_bare_atoms() {
 
 #[test]
 fn test_normalize_proplist_filters_invalid() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("valid")),
-            OwnedTerm::Integer(1),
-        ]),
-        OwnedTerm::Integer(42),
-        OwnedTerm::Tuple(vec![OwnedTerm::Atom(Atom::new("single"))]),
-    ]);
+    let proplist = erl_list![
+        erl_tuple![erl_atom!("valid"), erl_int!(1)],
+        erl_int!(42),
+        erl_tuple![erl_atom!("single")]
+    ];
 
     let normalized = proplist.normalize_proplist().unwrap();
     if let OwnedTerm::List(elements) = normalized {
@@ -137,13 +113,10 @@ fn test_proplist_to_map() {
     if let OwnedTerm::Map(m) = map {
         assert_eq!(m.len(), 2);
         assert_eq!(
-            m.get(&OwnedTerm::Atom(Atom::new("name"))),
+            m.get(&erl_atom!("name")),
             Some(&OwnedTerm::String("Alice".to_string()))
         );
-        assert_eq!(
-            m.get(&OwnedTerm::Atom(Atom::new("age"))),
-            Some(&OwnedTerm::Integer(30))
-        );
+        assert_eq!(m.get(&erl_atom!("age")), Some(&erl_int!(30)));
     } else {
         panic!("expected map");
     }
@@ -151,20 +124,14 @@ fn test_proplist_to_map() {
 
 #[test]
 fn test_proplist_to_map_with_bare_atoms() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Atom(Atom::new("debug")),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("level")),
-            OwnedTerm::Integer(5),
-        ]),
-    ]);
+    let proplist = erl_list![
+        erl_atom!("debug"),
+        erl_tuple![erl_atom!("level"), erl_int!(5)]
+    ];
 
     let map = proplist.proplist_to_map().unwrap();
     if let OwnedTerm::Map(m) = map {
-        assert_eq!(
-            m.get(&OwnedTerm::Atom(Atom::new("debug"))),
-            Some(&OwnedTerm::Atom(Atom::new("true")))
-        );
+        assert_eq!(m.get(&erl_atom!("debug")), Some(&erl_atom!("true")));
     } else {
         panic!("expected map");
     }
@@ -172,22 +139,17 @@ fn test_proplist_to_map_with_bare_atoms() {
 
 #[test]
 fn test_proplist_to_map_already_map() {
-    let mut m = BTreeMap::new();
-    m.insert(OwnedTerm::Atom(Atom::new("key")), OwnedTerm::Integer(1));
-    let map = OwnedTerm::Map(m);
+    let map = erl_map! { erl_atom!("key") => erl_int!(1) };
     let result = map.proplist_to_map().unwrap();
     assert!(matches!(result, OwnedTerm::Map(_)));
 }
 
 #[test]
 fn test_map_to_proplist() {
-    let mut m = BTreeMap::new();
-    m.insert(
-        OwnedTerm::Atom(Atom::new("name")),
-        OwnedTerm::String("Bob".to_string()),
-    );
-    m.insert(OwnedTerm::Atom(Atom::new("age")), OwnedTerm::Integer(25));
-    let map = OwnedTerm::Map(m);
+    let map = erl_map! {
+        erl_atom!("name") => OwnedTerm::String("Bob".to_string()),
+        erl_atom!("age") => erl_int!(25)
+    };
 
     let proplist = map.map_to_proplist().unwrap();
     if let OwnedTerm::List(elements) = proplist {
@@ -202,28 +164,21 @@ fn test_map_to_proplist() {
 
 #[test]
 fn test_map_to_proplist_already_list() {
-    let proplist = make_proplist();
-    let result = proplist.map_to_proplist().unwrap();
+    let result = make_proplist().map_to_proplist().unwrap();
     assert!(matches!(result, OwnedTerm::List(_)));
 }
 
 #[test]
 fn test_to_map_recursive_nested_proplists() {
-    let nested = OwnedTerm::List(vec![OwnedTerm::Tuple(vec![
-        OwnedTerm::Atom(Atom::new("outer")),
-        OwnedTerm::List(vec![OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("inner")),
-            OwnedTerm::Integer(42),
-        ])]),
-    ])]);
+    let nested = erl_list![erl_tuple![
+        erl_atom!("outer"),
+        erl_list![erl_tuple![erl_atom!("inner"), erl_int!(42)]]
+    ]];
 
     let result = nested.to_map_recursive().unwrap();
     if let OwnedTerm::Map(outer) = result {
-        if let Some(OwnedTerm::Map(inner)) = outer.get(&OwnedTerm::Atom(Atom::new("outer"))) {
-            assert_eq!(
-                inner.get(&OwnedTerm::Atom(Atom::new("inner"))),
-                Some(&OwnedTerm::Integer(42))
-            );
+        if let Some(OwnedTerm::Map(inner)) = outer.get(&erl_atom!("outer")) {
+            assert_eq!(inner.get(&erl_atom!("inner")), Some(&erl_int!(42)));
         } else {
             panic!("expected inner map");
         }
@@ -234,24 +189,20 @@ fn test_to_map_recursive_nested_proplists() {
 
 #[test]
 fn test_to_map_recursive_preserves_non_proplists() {
-    let list_of_integers = OwnedTerm::List(vec![OwnedTerm::Integer(1), OwnedTerm::Integer(2)]);
-
+    let list_of_integers = erl_list![erl_int!(1), erl_int!(2)];
     let result = list_of_integers.to_map_recursive().unwrap();
     assert!(matches!(result, OwnedTerm::List(_)));
 }
 
 #[test]
 fn test_atomize_keys_proplist() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Tuple(vec![
+    let proplist = erl_list![
+        erl_tuple![
             OwnedTerm::Binary(b"name".to_vec()),
-            OwnedTerm::String("Alice".to_string()),
-        ]),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::String("age".to_string()),
-            OwnedTerm::Integer(30),
-        ]),
-    ]);
+            OwnedTerm::String("Alice".to_string())
+        ],
+        erl_tuple![OwnedTerm::String("age".to_string()), erl_int!(30)]
+    ];
 
     let result = proplist.atomize_keys().unwrap();
     if let OwnedTerm::List(elements) = result {
@@ -276,7 +227,7 @@ fn test_atomize_keys_map() {
 
     let result = map.atomize_keys().unwrap();
     if let OwnedTerm::Map(m) = result {
-        assert!(m.contains_key(&OwnedTerm::Atom(Atom::new("name"))));
+        assert!(m.contains_key(&erl_atom!("name")));
     } else {
         panic!("expected map");
     }
@@ -284,14 +235,11 @@ fn test_atomize_keys_map() {
 
 #[test]
 fn test_atomize_keys_drops_non_convertible() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Binary(b"valid".to_vec()),
-            OwnedTerm::Integer(1),
-        ]),
-        OwnedTerm::Tuple(vec![OwnedTerm::Integer(42), OwnedTerm::Integer(2)]),
-        OwnedTerm::Tuple(vec![OwnedTerm::List(vec![]), OwnedTerm::Integer(3)]),
-    ]);
+    let proplist = erl_list![
+        erl_tuple![OwnedTerm::Binary(b"valid".to_vec()), erl_int!(1)],
+        erl_tuple![erl_int!(42), erl_int!(2)],
+        erl_tuple![erl_list![], erl_int!(3)]
+    ];
 
     let result = proplist.atomize_keys().unwrap();
     if let OwnedTerm::List(elements) = result {
@@ -303,23 +251,14 @@ fn test_atomize_keys_drops_non_convertible() {
 
 #[test]
 fn test_proplist_to_map_duplicate_keys_last_wins() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("key")),
-            OwnedTerm::Integer(1),
-        ]),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("key")),
-            OwnedTerm::Integer(2),
-        ]),
-    ]);
+    let proplist = erl_list![
+        erl_tuple![erl_atom!("key"), erl_int!(1)],
+        erl_tuple![erl_atom!("key"), erl_int!(2)]
+    ];
 
     let map = proplist.proplist_to_map().unwrap();
     if let OwnedTerm::Map(m) = map {
-        assert_eq!(
-            m.get(&OwnedTerm::Atom(Atom::new("key"))),
-            Some(&OwnedTerm::Integer(2))
-        );
+        assert_eq!(m.get(&erl_atom!("key")), Some(&erl_int!(2)));
     } else {
         panic!("expected map");
     }
@@ -327,7 +266,7 @@ fn test_proplist_to_map_duplicate_keys_last_wins() {
 
 #[test]
 fn test_as_list_wrapped_already_list() {
-    let list = OwnedTerm::List(vec![OwnedTerm::Integer(1)]);
+    let list = erl_list![erl_int!(1)];
     let result = list.as_list_wrapped();
     if let OwnedTerm::List(elements) = result {
         assert_eq!(elements.len(), 1);
@@ -338,11 +277,11 @@ fn test_as_list_wrapped_already_list() {
 
 #[test]
 fn test_as_list_wrapped_wraps_non_list() {
-    let term = OwnedTerm::Integer(42);
+    let term = erl_int!(42);
     let result = term.as_list_wrapped();
     if let OwnedTerm::List(elements) = result {
         assert_eq!(elements.len(), 1);
-        assert_eq!(elements[0], OwnedTerm::Integer(42));
+        assert_eq!(elements[0], erl_int!(42));
     } else {
         panic!("expected list");
     }
@@ -360,35 +299,26 @@ fn test_proplist_iter() {
     let pairs: Vec<_> = proplist.proplist_iter().unwrap().collect();
 
     assert_eq!(pairs.len(), 2);
-    assert_eq!(pairs[0].0, &OwnedTerm::Atom(Atom::new("name")));
+    assert_eq!(pairs[0].0, &erl_atom!("name"));
     assert_eq!(pairs[0].1, &OwnedTerm::String("Alice".to_string()));
 }
 
 #[test]
 fn test_proplist_iter_with_bare_atoms() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Atom(Atom::new("debug")),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("level")),
-            OwnedTerm::Integer(5),
-        ]),
-    ]);
+    let proplist = erl_list![
+        erl_atom!("debug"),
+        erl_tuple![erl_atom!("level"), erl_int!(5)]
+    ];
 
     let pairs: Vec<_> = proplist.proplist_iter().unwrap().collect();
     assert_eq!(pairs.len(), 2);
-    assert_eq!(pairs[0].0, &OwnedTerm::Atom(Atom::new("debug")));
-    assert_eq!(pairs[0].1, &OwnedTerm::Atom(Atom::new("true")));
+    assert_eq!(pairs[0].0, &erl_atom!("debug"));
+    assert_eq!(pairs[0].1, &erl_atom!("true"));
 }
 
 #[test]
 fn test_proplist_iter_skips_invalid() {
-    let proplist = OwnedTerm::List(vec![
-        OwnedTerm::Integer(42),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("valid")),
-            OwnedTerm::Integer(1),
-        ]),
-    ]);
+    let proplist = erl_list![erl_int!(42), erl_tuple![erl_atom!("valid"), erl_int!(1)]];
 
     let pairs: Vec<_> = proplist.proplist_iter().unwrap().collect();
     assert_eq!(pairs.len(), 1);
@@ -396,5 +326,5 @@ fn test_proplist_iter_skips_invalid() {
 
 #[test]
 fn test_proplist_iter_on_non_list() {
-    assert!(OwnedTerm::Integer(42).proplist_iter().is_none());
+    assert!(erl_int!(42).proplist_iter().is_none());
 }

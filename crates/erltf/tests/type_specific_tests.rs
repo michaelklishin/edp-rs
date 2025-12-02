@@ -14,7 +14,7 @@
 
 use erltf::OwnedTerm;
 use erltf::types::{Atom, BigInt, ExternalFun, ExternalPid, InternalFun};
-use erltf::{decode, encode};
+use erltf::{decode, encode, erl_atom, erl_int, erl_list, erl_map, erl_tuple};
 use std::cmp::Ordering;
 
 // ============================================================================
@@ -320,7 +320,7 @@ fn test_internal_fun_roundtrip() {
         100,
         200,
         ExternalPid::new(Atom::new("node@host"), 1, 2, 3),
-        vec![OwnedTerm::Integer(10), OwnedTerm::Atom(Atom::new("test"))],
+        vec![erl_int!(10), erl_atom!("test")],
     );
     let term = OwnedTerm::InternalFun(Box::new(fun));
 
@@ -407,13 +407,13 @@ fn test_negative_zero_bigint() {
 
 #[test]
 fn test_number_less_than_atom() {
-    assert!(OwnedTerm::Integer(42) < OwnedTerm::atom("hello"));
-    assert!(OwnedTerm::float(2.5) < OwnedTerm::atom("world"));
+    assert!(erl_int!(42) < erl_atom!("hello"));
+    assert!(OwnedTerm::float(2.5) < erl_atom!("world"));
 }
 
 #[test]
 fn test_atom_less_than_reference() {
-    let atom = OwnedTerm::atom("test");
+    let atom = erl_atom!("test");
     let reference = OwnedTerm::Reference(erltf::types::ExternalReference::new(
         Atom::new("node@host"),
         1,
@@ -458,31 +458,27 @@ fn test_port_less_than_pid() {
 #[test]
 fn test_pid_less_than_tuple() {
     let pid = OwnedTerm::Pid(ExternalPid::new(Atom::new("node@host"), 1, 2, 3));
-    let tuple = OwnedTerm::tuple(vec![OwnedTerm::Integer(1)]);
+    let tuple = erl_tuple![erl_int!(1)];
     assert!(pid < tuple);
 }
 
 #[test]
 fn test_tuple_less_than_map() {
-    let tuple = OwnedTerm::tuple(vec![OwnedTerm::Integer(1)]);
-    let mut map = std::collections::BTreeMap::new();
-    map.insert(OwnedTerm::atom("key"), OwnedTerm::Integer(1));
-    let map_term = OwnedTerm::Map(map);
+    let tuple = erl_tuple![erl_int!(1)];
+    let map_term = erl_map! { erl_atom!("key") => erl_int!(1) };
     assert!(tuple < map_term);
 }
 
 #[test]
 fn test_map_less_than_list() {
-    let mut map = std::collections::BTreeMap::new();
-    map.insert(OwnedTerm::atom("key"), OwnedTerm::Integer(1));
-    let map_term = OwnedTerm::Map(map);
-    let list = OwnedTerm::list(vec![OwnedTerm::Integer(1)]);
+    let map_term = erl_map! { erl_atom!("key") => erl_int!(1) };
+    let list = erl_list![erl_int!(1)];
     assert!(map_term < list);
 }
 
 #[test]
 fn test_list_less_than_binary() {
-    let list = OwnedTerm::list(vec![OwnedTerm::Integer(1)]);
+    let list = erl_list![erl_int!(1)];
     let binary = OwnedTerm::Binary(vec![1, 2, 3]);
     assert!(list < binary);
 }
@@ -490,8 +486,8 @@ fn test_list_less_than_binary() {
 #[test]
 fn test_complete_type_ordering_chain() {
     let terms = vec![
-        OwnedTerm::Integer(42),
-        OwnedTerm::atom("atom"),
+        erl_int!(42),
+        erl_atom!("atom"),
         OwnedTerm::Reference(erltf::types::ExternalReference::new(
             Atom::new("node@host"),
             1,
@@ -504,9 +500,9 @@ fn test_complete_type_ordering_chain() {
             1,
         )),
         OwnedTerm::Pid(ExternalPid::new(Atom::new("node@host"), 1, 2, 3)),
-        OwnedTerm::tuple(vec![]),
-        OwnedTerm::Map(std::collections::BTreeMap::new()),
-        OwnedTerm::list(vec![]),
+        erl_tuple![],
+        erl_map! {},
+        erl_list![],
         OwnedTerm::Binary(vec![]),
     ];
 

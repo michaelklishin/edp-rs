@@ -31,7 +31,7 @@ use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;
 use tokio::net::tcp::OwnedReadHalf;
-use tracing::{debug, info, trace};
+use tracing::{debug, trace};
 
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
 const MAX_MESSAGE_SIZE: usize = 64 * 1024 * 1024;
@@ -207,14 +207,14 @@ impl Connection {
         debug!("EPMD returned port: {}", port);
 
         let addr = format!("{}:{}", remote_host, port);
-        info!("Connecting to: {}", addr);
+        debug!("Connecting to: {}", addr);
 
         let stream = tokio::time::timeout(self.config.timeout, TcpStream::connect(&addr))
             .await
             .map_err(|_| Error::Timeout(self.config.timeout))?
             .map_err(Error::Io)?;
 
-        info!("TCP connection established");
+        debug!("TCP connection established");
         self.transport.connect(stream);
 
         debug!("Starting handshake sequence");
@@ -226,7 +226,7 @@ impl Connection {
         self.receive_challenge_ack().await?;
 
         self.transport.set_frame_mode(FrameMode::Distribution);
-        info!("Handshake complete, connection established");
+        debug!("Handshake complete, connection established");
 
         Ok(())
     }
@@ -261,7 +261,7 @@ impl Connection {
     async fn receive_challenge(&mut self) -> Result<()> {
         let data = self.read_message().await?;
         self.handshake.handle_challenge(&data)?;
-        info!("Negotiated flags: {:?}", self.handshake.negotiated_flags());
+        debug!("Negotiated flags: {:?}", self.handshake.negotiated_flags());
         Ok(())
     }
 

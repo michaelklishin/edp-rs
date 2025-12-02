@@ -14,8 +14,7 @@
 
 use erltf::OwnedTerm;
 use erltf::types::{Atom, ExternalReference};
-use erltf::{decode, encode};
-use std::collections::BTreeMap;
+use erltf::{decode, encode, erl_atom, erl_int, erl_map, erl_tuple};
 
 // ============================================================================
 // Ergonomics Tests
@@ -26,8 +25,8 @@ fn test_boolean_constructors() {
     let true_term = OwnedTerm::boolean(true);
     let false_term = OwnedTerm::boolean(false);
 
-    assert_eq!(true_term, OwnedTerm::atom("true"));
-    assert_eq!(false_term, OwnedTerm::atom("false"));
+    assert_eq!(true_term, erl_atom!("true"));
+    assert_eq!(false_term, erl_atom!("false"));
 }
 
 #[test]
@@ -35,14 +34,14 @@ fn test_ok_error_constructors() {
     let ok = OwnedTerm::ok();
     let error = OwnedTerm::error();
 
-    assert_eq!(ok, OwnedTerm::atom("ok"));
-    assert_eq!(error, OwnedTerm::atom("error"));
+    assert_eq!(ok, erl_atom!("ok"));
+    assert_eq!(error, erl_atom!("error"));
 }
 
 #[test]
 fn test_ok_tuple() {
-    let result = OwnedTerm::ok_tuple(OwnedTerm::integer(42));
-    let expected = OwnedTerm::tuple(vec![OwnedTerm::ok(), OwnedTerm::integer(42)]);
+    let result = OwnedTerm::ok_tuple(erl_int!(42));
+    let expected = erl_tuple![OwnedTerm::ok(), erl_int!(42)];
 
     assert_eq!(result, expected);
 
@@ -53,8 +52,8 @@ fn test_ok_tuple() {
 
 #[test]
 fn test_error_tuple() {
-    let result = OwnedTerm::error_tuple(OwnedTerm::atom("not_found"));
-    let expected = OwnedTerm::tuple(vec![OwnedTerm::error(), OwnedTerm::atom("not_found")]);
+    let result = OwnedTerm::error_tuple(erl_atom!("not_found"));
+    let expected = erl_tuple![OwnedTerm::error(), erl_atom!("not_found")];
 
     assert_eq!(result, expected);
 
@@ -65,10 +64,7 @@ fn test_error_tuple() {
 
 #[test]
 fn test_improper_list_constructor() {
-    let improper = OwnedTerm::improper_list(
-        vec![OwnedTerm::integer(1), OwnedTerm::integer(2)],
-        OwnedTerm::atom("tail"),
-    );
+    let improper = OwnedTerm::improper_list(vec![erl_int!(1), erl_int!(2)], erl_atom!("tail"));
 
     let encoded = encode(&improper).unwrap();
     let decoded = decode(&encoded).unwrap();
@@ -77,7 +73,7 @@ fn test_improper_list_constructor() {
 
 #[test]
 fn test_encode_to_writer() {
-    let term = OwnedTerm::tuple(vec![OwnedTerm::atom("test"), OwnedTerm::integer(123)]);
+    let term = erl_tuple![erl_atom!("test"), erl_int!(123)];
 
     let mut buf = Vec::new();
     erltf::encode_to_writer(&term, &mut buf).unwrap();
@@ -121,18 +117,20 @@ fn test_reference_size_validation() {
 
 #[test]
 fn test_map_deterministic_encoding() {
-    let mut map1 = BTreeMap::new();
-    map1.insert(OwnedTerm::atom("z"), OwnedTerm::integer(1));
-    map1.insert(OwnedTerm::atom("a"), OwnedTerm::integer(2));
-    map1.insert(OwnedTerm::atom("m"), OwnedTerm::integer(3));
+    let map1 = erl_map! {
+        erl_atom!("z") => erl_int!(1),
+        erl_atom!("a") => erl_int!(2),
+        erl_atom!("m") => erl_int!(3)
+    };
 
-    let mut map2 = BTreeMap::new();
-    map2.insert(OwnedTerm::atom("a"), OwnedTerm::integer(2));
-    map2.insert(OwnedTerm::atom("m"), OwnedTerm::integer(3));
-    map2.insert(OwnedTerm::atom("z"), OwnedTerm::integer(1));
+    let map2 = erl_map! {
+        erl_atom!("a") => erl_int!(2),
+        erl_atom!("m") => erl_int!(3),
+        erl_atom!("z") => erl_int!(1)
+    };
 
-    let encoded1 = encode(&OwnedTerm::Map(map1)).unwrap();
-    let encoded2 = encode(&OwnedTerm::Map(map2)).unwrap();
+    let encoded1 = encode(&map1).unwrap();
+    let encoded2 = encode(&map2).unwrap();
 
     assert_eq!(encoded1, encoded2);
 }

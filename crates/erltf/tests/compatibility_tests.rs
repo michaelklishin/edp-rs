@@ -15,6 +15,7 @@
 use erltf::types::{Atom, ExternalPid, ExternalPort, ExternalReference};
 use erltf::{
     AtomCache, OwnedTerm, decode, decode_with_atom_cache, encode, encode_with_dist_header_multi,
+    erl_atom, erl_int, erl_list, erl_tuple,
 };
 use std::io::Write;
 
@@ -104,10 +105,7 @@ fn test_decode_local_ext_wraps_tuple() {
         131, 121, 0, 0, 0, 0, 0, 0, 0, 1, 104, 2, 100, 0, 2, 111, 107, 97, 42,
     ];
     let term = decode(&bytes).expect("Failed to decode LOCAL_EXT with tuple");
-    assert_eq!(
-        term,
-        OwnedTerm::tuple(vec![OwnedTerm::atom("ok"), OwnedTerm::Integer(42)])
-    );
+    assert_eq!(term, erl_tuple![erl_atom!("ok"), erl_int!(42)]);
 }
 
 // ============================================================================
@@ -408,11 +406,7 @@ fn test_decompress_atom() {
 
 #[test]
 fn test_decompress_list() {
-    let uncompressed_list = OwnedTerm::list(vec![
-        OwnedTerm::Integer(1),
-        OwnedTerm::Integer(2),
-        OwnedTerm::Integer(3),
-    ]);
+    let uncompressed_list = erl_list![erl_int!(1), erl_int!(2), erl_int!(3)];
     let encoded = encode(&uncompressed_list).expect("Failed to encode list");
 
     let mut compressed_bytes = Vec::new();
@@ -455,16 +449,13 @@ fn test_decompress_large_binary() {
 
 #[test]
 fn test_decompress_nested_structure() {
-    let nested = OwnedTerm::tuple(vec![
-        OwnedTerm::atom("ok"),
-        OwnedTerm::list(vec![
-            OwnedTerm::Integer(1),
-            OwnedTerm::tuple(vec![
-                OwnedTerm::atom("nested"),
-                OwnedTerm::Binary(vec![1, 2, 3, 4, 5]),
-            ]),
-        ]),
-    ]);
+    let nested = erl_tuple![
+        erl_atom!("ok"),
+        erl_list![
+            erl_int!(1),
+            erl_tuple![erl_atom!("nested"), OwnedTerm::Binary(vec![1, 2, 3, 4, 5])]
+        ]
+    ];
     let encoded = encode(&nested).expect("Failed to encode nested structure");
 
     let mut compressed_bytes = Vec::new();
@@ -489,33 +480,33 @@ fn test_decompress_nested_structure() {
 
 #[test]
 fn test_dist_header_roundtrip() {
-    let control = OwnedTerm::Tuple(vec![
-        OwnedTerm::Integer(6), // RegSend
+    let control = erl_tuple![
+        erl_int!(6), // RegSend
         OwnedTerm::Pid(ExternalPid::new(
             Atom::new("rust_client@sunnyside"),
             1,
             0,
             1762047320,
         )),
-        OwnedTerm::Atom(Atom::new("")),
-        OwnedTerm::Atom(Atom::new("rex")),
-    ]);
+        erl_atom!(""),
+        erl_atom!("rex")
+    ];
 
-    let payload = OwnedTerm::Tuple(vec![
+    let payload = erl_tuple![
         OwnedTerm::Pid(ExternalPid::new(
             Atom::new("rust_client@sunnyside"),
             1,
             0,
             1762047320,
         )),
-        OwnedTerm::Tuple(vec![
-            OwnedTerm::Atom(Atom::new("call")),
-            OwnedTerm::Atom(Atom::new("rabbit")),
-            OwnedTerm::Atom(Atom::new("status")),
-            OwnedTerm::List(vec![]),
-            OwnedTerm::Atom(Atom::new("user")),
-        ]),
-    ]);
+        erl_tuple![
+            erl_atom!("call"),
+            erl_atom!("rabbit"),
+            erl_atom!("status"),
+            erl_list![],
+            erl_atom!("user")
+        ]
+    ];
 
     let encoded = encode_with_dist_header_multi(&[&control, &payload]).unwrap();
 

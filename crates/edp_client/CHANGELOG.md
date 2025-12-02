@@ -1,8 +1,10 @@
 # edp_client Change Log
 
-## v0.13.0 (in development)
+## v0.13.0 (Dec 2, 2025)
 
-(no changes yet)
+### Enhancements
+
+ * Most logging is now done at `debug` level; two exceptions are warnings and errors
 
 
 ## v0.12.0 (Nov 30, 2025)

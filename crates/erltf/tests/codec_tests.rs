@@ -14,12 +14,11 @@
 
 use erltf::OwnedTerm;
 use erltf::types::{Atom, BigInt, ExternalPid, ExternalPort, ExternalReference};
-use erltf::{decode, encode};
-use std::collections::BTreeMap;
+use erltf::{decode, encode, erl_atom, erl_int, erl_list, erl_map, erl_tuple};
 
 #[test]
 fn test_encode_decode_small_integer() {
-    let term = OwnedTerm::Integer(42);
+    let term = erl_int!(42);
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -27,7 +26,7 @@ fn test_encode_decode_small_integer() {
 
 #[test]
 fn test_encode_decode_negative_integer() {
-    let term = OwnedTerm::Integer(-12345);
+    let term = erl_int!(-12345);
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -35,7 +34,7 @@ fn test_encode_decode_negative_integer() {
 
 #[test]
 fn test_encode_decode_atom() {
-    let term = OwnedTerm::Atom(Atom::new("test"));
+    let term = erl_atom!("test");
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -43,7 +42,7 @@ fn test_encode_decode_atom() {
 
 #[test]
 fn test_encode_decode_atom_utf8() {
-    let term = OwnedTerm::Atom(Atom::new("тест"));
+    let term = erl_atom!("тест");
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -75,7 +74,7 @@ fn test_encode_decode_string() {
 
 #[test]
 fn test_encode_decode_empty_list() {
-    let term = OwnedTerm::List(vec![]);
+    let term = erl_list![];
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(OwnedTerm::Nil, decoded);
@@ -83,11 +82,7 @@ fn test_encode_decode_empty_list() {
 
 #[test]
 fn test_encode_decode_list() {
-    let term = OwnedTerm::List(vec![
-        OwnedTerm::Integer(1),
-        OwnedTerm::Integer(2),
-        OwnedTerm::Integer(3),
-    ]);
+    let term = erl_list![erl_int!(1), erl_int!(2), erl_int!(3)];
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -95,10 +90,7 @@ fn test_encode_decode_list() {
 
 #[test]
 fn test_encode_decode_tuple() {
-    let term = OwnedTerm::Tuple(vec![
-        OwnedTerm::Atom(Atom::new("ok")),
-        OwnedTerm::Integer(42),
-    ]);
+    let term = erl_tuple![erl_atom!("ok"), erl_int!(42)];
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -106,13 +98,10 @@ fn test_encode_decode_tuple() {
 
 #[test]
 fn test_encode_decode_map() {
-    let mut map = BTreeMap::new();
-    map.insert(OwnedTerm::Atom(Atom::new("key1")), OwnedTerm::Integer(100));
-    map.insert(
-        OwnedTerm::Atom(Atom::new("key2")),
-        OwnedTerm::Binary(b"value".to_vec()),
-    );
-    let term = OwnedTerm::Map(map);
+    let term = erl_map! {
+        erl_atom!("key1") => erl_int!(100),
+        erl_atom!("key2") => OwnedTerm::Binary(b"value".to_vec())
+    };
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -137,21 +126,13 @@ fn test_encode_decode_large_tuple() {
 
 #[test]
 fn test_encode_decode_nested_structure() {
-    let inner_map = {
-        let mut m = BTreeMap::new();
-        m.insert(OwnedTerm::Atom(Atom::new("inner")), OwnedTerm::Integer(1));
-        m
-    };
+    let inner_map = erl_map! { erl_atom!("inner") => erl_int!(1) };
 
-    let term = OwnedTerm::Tuple(vec![
-        OwnedTerm::Atom(Atom::new("complex")),
-        OwnedTerm::List(vec![
-            OwnedTerm::Integer(1),
-            OwnedTerm::Integer(2),
-            OwnedTerm::Integer(3),
-        ]),
-        OwnedTerm::Map(inner_map),
-    ]);
+    let term = erl_tuple![
+        erl_atom!("complex"),
+        erl_list![erl_int!(1), erl_int!(2), erl_int!(3)],
+        inner_map
+    ];
 
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
@@ -182,7 +163,7 @@ fn test_encode_decode_i64_max() {
 
 #[test]
 fn test_encode_decode_empty_atom() {
-    let term = OwnedTerm::Atom(Atom::new(""));
+    let term = erl_atom!("");
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
     assert_eq!(term, decoded);
@@ -199,8 +180,8 @@ fn test_encode_decode_empty_binary() {
 #[test]
 fn test_encode_decode_improper_list() {
     let term = OwnedTerm::ImproperList {
-        elements: vec![OwnedTerm::Integer(1), OwnedTerm::Integer(2)],
-        tail: Box::new(OwnedTerm::Atom(Atom::new("tail"))),
+        elements: vec![erl_int!(1), erl_int!(2)],
+        tail: Box::new(erl_atom!("tail")),
     };
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
@@ -357,9 +338,9 @@ fn test_trailing_bytes() {
 
 #[test]
 fn test_deeply_nested_tuples() {
-    let mut term = OwnedTerm::integer(0);
+    let mut term = erl_int!(0);
     for _ in 0..100 {
-        term = OwnedTerm::Tuple(vec![term]);
+        term = erl_tuple![term];
     }
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();
@@ -368,9 +349,9 @@ fn test_deeply_nested_tuples() {
 
 #[test]
 fn test_deeply_nested_lists() {
-    let mut term = OwnedTerm::integer(0);
+    let mut term = erl_int!(0);
     for _ in 0..100 {
-        term = OwnedTerm::List(vec![term]);
+        term = erl_list![term];
     }
     let encoded = encode(&term).unwrap();
     let decoded = decode(&encoded).unwrap();

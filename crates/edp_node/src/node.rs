@@ -125,7 +125,7 @@ impl Node {
         self.pid_allocator.set_creation(creation);
         self.listen_port = Some(port);
 
-        tracing::info!(
+        tracing::debug!(
             "Node {} started on port {} with creation {}",
             self.name,
             port,
@@ -163,7 +163,7 @@ impl Node {
 
         self.spawn_receiver_task(remote_node.clone(), read_half, timeout);
 
-        tracing::info!("Connected to {}", remote_node);
+        tracing::debug!("Connected to {}", remote_node);
         Ok(())
     }
 
@@ -220,7 +220,7 @@ impl Node {
             }
 
             connections.remove(&remote_node_clone);
-            tracing::info!(
+            tracing::debug!(
                 "Receiver task for {} terminated, connection removed",
                 remote_node
             );

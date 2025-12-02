@@ -1,8 +1,11 @@
 # erltf Change Log
 
-## v0.13.0 (in development)
+## v0.13.0 (Dec 2, 2025)
 
-(no changes yet)
+### Enhancements
+
+ * `KeyValueAccess` is a new trait that provides a unified interface for
+   fetching values from both maps and proplists
 
 
 ## v0.12.0 (Nov 30, 2025)

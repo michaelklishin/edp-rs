@@ -14,8 +14,8 @@
 
 use erltf::OwnedTerm;
 use erltf::types::BigInt;
+use erltf::{erl_atom, erl_int, erl_list, erl_map, erl_tuple};
 use std::cmp::Ordering;
-use std::collections::BTreeMap;
 
 #[test]
 fn test_erlang_term_ordering_types() {
@@ -122,75 +122,63 @@ fn test_binary_ordering() {
 
 #[test]
 fn test_map_ordering_deterministic() {
-    let mut map1 = BTreeMap::new();
-    map1.insert(OwnedTerm::atom("z"), OwnedTerm::integer(1));
-    map1.insert(OwnedTerm::atom("a"), OwnedTerm::integer(2));
-    map1.insert(OwnedTerm::atom("m"), OwnedTerm::integer(3));
+    let map1 = erl_map! {
+        erl_atom!("z") => erl_int!(1),
+        erl_atom!("a") => erl_int!(2),
+        erl_atom!("m") => erl_int!(3)
+    };
 
-    let mut map2 = BTreeMap::new();
-    map2.insert(OwnedTerm::atom("a"), OwnedTerm::integer(2));
-    map2.insert(OwnedTerm::atom("m"), OwnedTerm::integer(3));
-    map2.insert(OwnedTerm::atom("z"), OwnedTerm::integer(1));
+    let map2 = erl_map! {
+        erl_atom!("a") => erl_int!(2),
+        erl_atom!("m") => erl_int!(3),
+        erl_atom!("z") => erl_int!(1)
+    };
 
-    assert_eq!(
-        OwnedTerm::Map(map1).cmp(&OwnedTerm::Map(map2)),
-        Ordering::Equal
-    );
+    assert_eq!(map1.cmp(&map2), Ordering::Equal);
 }
 
 #[test]
 fn test_map_ordering_by_size() {
-    let mut small_map = BTreeMap::new();
-    small_map.insert(OwnedTerm::atom("a"), OwnedTerm::integer(1));
+    let small_map = erl_map! { erl_atom!("a") => erl_int!(1) };
+    let large_map = erl_map! {
+        erl_atom!("a") => erl_int!(1),
+        erl_atom!("b") => erl_int!(2)
+    };
 
-    let mut large_map = BTreeMap::new();
-    large_map.insert(OwnedTerm::atom("a"), OwnedTerm::integer(1));
-    large_map.insert(OwnedTerm::atom("b"), OwnedTerm::integer(2));
-
-    assert!(OwnedTerm::Map(small_map) < OwnedTerm::Map(large_map));
+    assert!(small_map < large_map);
 }
 
 #[test]
 fn test_map_ordering_by_keys() {
-    let mut map1 = BTreeMap::new();
-    map1.insert(OwnedTerm::atom("a"), OwnedTerm::integer(1));
+    let map1 = erl_map! { erl_atom!("a") => erl_int!(1) };
+    let map2 = erl_map! { erl_atom!("b") => erl_int!(1) };
 
-    let mut map2 = BTreeMap::new();
-    map2.insert(OwnedTerm::atom("b"), OwnedTerm::integer(1));
-
-    assert!(OwnedTerm::Map(map1) < OwnedTerm::Map(map2));
+    assert!(map1 < map2);
 }
 
 #[test]
 fn test_map_ordering_by_values() {
-    let mut map1 = BTreeMap::new();
-    map1.insert(OwnedTerm::atom("key"), OwnedTerm::integer(1));
+    let map1 = erl_map! { erl_atom!("key") => erl_int!(1) };
+    let map2 = erl_map! { erl_atom!("key") => erl_int!(2) };
 
-    let mut map2 = BTreeMap::new();
-    map2.insert(OwnedTerm::atom("key"), OwnedTerm::integer(2));
-
-    assert!(OwnedTerm::Map(map1) < OwnedTerm::Map(map2));
+    assert!(map1 < map2);
 }
 
 #[test]
 fn test_complex_map_ordering() {
-    let mut map1 = BTreeMap::new();
-    map1.insert(OwnedTerm::integer(1), OwnedTerm::atom("one"));
-    map1.insert(OwnedTerm::atom("two"), OwnedTerm::integer(2));
-    map1.insert(
-        OwnedTerm::tuple(vec![OwnedTerm::integer(3)]),
-        OwnedTerm::list(vec![OwnedTerm::atom("apple")]),
-    );
+    let map1 = erl_map! {
+        erl_int!(1) => erl_atom!("one"),
+        erl_atom!("two") => erl_int!(2),
+        erl_tuple![erl_int!(3)] => erl_list![erl_atom!("apple")]
+    };
 
-    let mut map2 = BTreeMap::new();
-    map2.insert(OwnedTerm::integer(1), OwnedTerm::atom("one"));
-    map2.insert(OwnedTerm::atom("two"), OwnedTerm::integer(2));
-    map2.insert(
-        OwnedTerm::tuple(vec![OwnedTerm::integer(3)]),
-        OwnedTerm::list(vec![OwnedTerm::atom("banana")]),
-    );
+    let map2 = erl_map! {
+        erl_int!(1) => erl_atom!("one"),
+        erl_atom!("two") => erl_int!(2),
+        erl_tuple![erl_int!(3)] => erl_list![erl_atom!("banana")]
+    };
 
-    assert!(OwnedTerm::Map(map1) < OwnedTerm::Map(map2));
+    assert!(map1 < map2);
 }
 
 #[test]
@@ -220,12 +208,12 @@ fn test_sorting_mixed_terms() {
 
 #[test]
 fn test_map_with_sorted_keys() {
-    let mut map = BTreeMap::new();
-    map.insert(OwnedTerm::integer(3), OwnedTerm::atom("three"));
-    map.insert(OwnedTerm::integer(1), OwnedTerm::atom("one"));
-    map.insert(OwnedTerm::integer(2), OwnedTerm::atom("two"));
+    let term = erl_map! {
+        erl_int!(3) => erl_atom!("three"),
+        erl_int!(1) => erl_atom!("one"),
+        erl_int!(2) => erl_atom!("two")
+    };
 
-    let term = OwnedTerm::Map(map);
     let encoded = erltf::encode(&term).unwrap();
     let decoded = erltf::decode(&encoded).unwrap();
 
