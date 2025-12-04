@@ -13,10 +13,12 @@
 // limitations under the License.
 
 mod de;
+pub mod elixir;
 mod error;
 mod ser;
 
 pub use de::{Deserializer, ProplistDeserializer, from_bytes, from_proplist, from_term};
+pub use erltf_serde_derive::ElixirStruct;
 pub use error::{Error, Result};
 pub use ser::{Serializer, to_bytes, to_term};
 

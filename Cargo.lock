@@ -406,9 +406,19 @@ name = "erltf_serde"
 version = "0.14.0"
 dependencies = [
  "erltf",
+ "erltf_serde_derive",
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "erltf_serde_derive"
+version = "0.14.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
