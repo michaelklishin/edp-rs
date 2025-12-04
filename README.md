@@ -46,7 +46,7 @@ These libraries were developed with efficiency in mind, both in terms of memory 
 parser performance.
 
 The Erlang Term Format encoder and decoder can achive throughput ranging from hundreds of MiBs to tens of GiBs
-per second in terms of throughput, see `CONTRIBUTING.md` to learn how to run the benchmarks.
+per second, see `CONTRIBUTING.md` to learn how to run the benchmarks.
 
 Actual throughput will vary from workload to workload.
 
