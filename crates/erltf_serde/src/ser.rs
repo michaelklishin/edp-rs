@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::elixir::{ATOM_KEY_MARKER, ATOM_VALUE_MARKER};
 use crate::error::{Error, Result};
 use erltf::term::OwnedTerm;
 use erltf::types::{Atom, BigInt};
@@ -132,10 +133,23 @@ impl SerdeSerializer for &mut Serializer {
 
     fn serialize_newtype_struct<T: ?Sized + Serialize>(
         self,
-        _name: &'static str,
+        name: &'static str,
         value: &T,
     ) -> Result<OwnedTerm> {
-        value.serialize(self)
+        if name == ATOM_KEY_MARKER || name == ATOM_VALUE_MARKER {
+            let inner = value.serialize(&mut Serializer)?;
+            match inner {
+                OwnedTerm::Binary(b) => {
+                    let s = String::from_utf8(b)
+                        .map_err(|e| Error::Message(format!("Invalid UTF-8 in atom: {}", e)))?;
+                    Ok(OwnedTerm::Atom(Atom::new(s)))
+                }
+                OwnedTerm::String(s) => Ok(OwnedTerm::Atom(Atom::new(s))),
+                other => Ok(other),
+            }
+        } else {
+            value.serialize(self)
+        }
     }
 
     fn serialize_newtype_variant<T: ?Sized + Serialize>(

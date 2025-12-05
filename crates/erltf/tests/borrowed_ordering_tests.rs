@@ -46,7 +46,7 @@ fn test_borrowed_owned_equivalence_strings_vs_binaries() {
 
 #[test]
 fn test_borrowed_owned_equivalence_type_ordering() {
-    let owned_terms = vec![
+    let owned_terms = [
         OwnedTerm::binary(vec![1]),
         OwnedTerm::integer(5),
         OwnedTerm::atom("test"),
@@ -55,7 +55,7 @@ fn test_borrowed_owned_equivalence_type_ordering() {
         OwnedTerm::list(vec![OwnedTerm::integer(1)]),
     ];
 
-    let borrowed_terms = vec![
+    let borrowed_terms = [
         BorrowedTerm::Binary(Cow::Borrowed(&[1])),
         BorrowedTerm::Integer(5),
         BorrowedTerm::Atom(Cow::Borrowed("test")),

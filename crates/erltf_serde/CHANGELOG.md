@@ -2,7 +2,11 @@
 
 ## v0.14.0 (in development)
 
-(no changes yet)
+ * First class mapping of Elixir structs to Rust structs.
+
+   Contributed by @scrogson.
+
+   GitHub issue: [#8](https://github.com/michaelklishin/edp-rs/pull/8)
 
 
 ## v0.13.0 (Dec 2, 2025)

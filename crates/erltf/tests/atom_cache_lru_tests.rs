@@ -31,7 +31,7 @@ fn test_atom_cache_max_capacity() {
     let mut cache = AtomCache::new();
 
     for i in 0..256 {
-        cache.insert(i as u8, Atom::new(&format!("atom_{}", i)));
+        cache.insert(i as u8, Atom::new(format!("atom_{}", i)));
     }
 
     assert_eq!(cache.len(), 256, "Cache holds all 256 possible indices");

@@ -1,0 +1,18 @@
+[package]
+name = "erltf_serde_derive"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+description = "Derive macros for Elixir struct serialization with erltf_serde"
+keywords = ["erlang", "elixir", "serde", "derive", "macro"]
+categories = ["encoding"]
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = { workspace = true }
+quote = { workspace = true }
+syn = { workspace = true }
