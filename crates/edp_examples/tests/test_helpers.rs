@@ -186,6 +186,7 @@ impl TestContext {
             .await?)
     }
 
+    #[allow(dead_code)]
     pub async fn rpc_call_unwrapped(
         &mut self,
         module: &str,
