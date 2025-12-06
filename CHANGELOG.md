@@ -1,36 +1,88 @@
-# erltf Change Log
+# Change Log
 
 ## v0.14.0 (in development)
+
+### erltf
+
+(no changes yet)
+
+### erltf_serde
+
+ * First class mapping of Elixir structs to Rust structs.
+
+   Contributed by @scrogson.
+
+   GitHub issue: [#8](https://github.com/michaelklishin/edp-rs/pull/8)
+
+### edp_client
+
+(no changes yet)
+
+### edp_node
 
 (no changes yet)
 
 
 ## v0.13.0 (Dec 2, 2025)
 
-### Enhancements
+### erltf
+
+#### Enhancements
 
  * `KeyValueAccess` is a new trait that provides a unified interface for
    fetching values from both maps and proplists
 
+### erltf_serde
+
+(no changes)
+
+### edp_client
+
+#### Enhancements
+
+ * Most logging is now done at `debug` level; two exceptions are warnings and errors
+
+### edp_node
+
+#### Enhancements
+
+ * Most logging is now done at `debug` level; two exceptions are warnings and errors
+
 
 ## v0.12.0 (Nov 30, 2025)
 
-### Bug Fixes
+### erltf
+
+#### Bug Fixes
 
  * More revisions to external PID roundtrips
 
-### Enhancements
+#### Enhancements
 
  * Atom decoding now performs fewer allocations
 
-### Test Coverage
+#### Test Coverage
 
  * Property-based tests for `BitBinary`, `BigInt`, `ExternalFun`, `InternalFun`, and `ImproperList`
+
+### erltf_serde
+
+(no changes)
+
+### edp_client
+
+(no changes)
+
+### edp_node
+
+(no changes)
 
 
 ## v0.11.0 (Nov 30, 2025)
 
-### Bug Fixes
+### erltf
+
+#### Bug Fixes
 
  * It wasn't possible to "roundtrip" a PID, e.g. during an RPC request-response sequence.
 
@@ -40,17 +92,31 @@
    This release stores the original `LOCAL_EXT` bytes for PIDs, ports, and references, and reuses
    them when encoding back to the remote node in a response.
 
-### Enhancements
+#### Enhancements
 
  * `ExternalPid::from_erl_pid_string` for parsing local pid string references (such as `"<0.123.0>"`)
    with additional context that is not available in the input string
 
  * New `tags` module exposing all ETF tag constants
 
+### erltf_serde
+
+(no changes)
+
+### edp_client
+
+(no changes)
+
+### edp_node
+
+(no changes)
+
 
 ## v0.10.0 (Nov 29, 2025)
 
-### Enhancements
+### erltf
+
+#### Enhancements
 
 This release introduces many helper functions for working with common Erlang terms:
 
@@ -88,28 +154,84 @@ This release introduces many helper functions for working with common Erlang ter
  * `OwnedTerm::proplist_get_mfa_string` gets proplist MFA as "mod:fun/arity" String
  * `OwnedTerm::proplist_get_mfa_string_or`
 
-### Bug Fixes
+#### Bug Fixes
 
  * `Mfa::try_from_term` arity is now only accepted as an integer
+
+### erltf_serde
+
+(no changes)
+
+### edp_client
+
+(no changes)
+
+### edp_node
+
+#### Enhancements
+
+ * New `erlang_mod_fns` module with RPC helpers: `erlang_system_info`, `erlang_statistics`, `erlang_memory`, `erlang_processes`, `erlang_process_info`, `erlang_list_to_pid`
+ * Re-exports `ExternalPid` and `Mfa` from `erltf`
+ * Re-exports all `erl_*` macros from `erltf`: `erl_tuple!`, `erl_list!`, `erl_map!`, `erl_atom!`, `erl_atoms!`, `erl_int!`
 
 
 ## v0.9.0 (Nov 29, 2025)
 
+### erltf
+
 (no changes)
+
+### erltf_serde
+
+(no changes)
+
+### edp_client
+
+(no changes)
+
+### edp_node
+
+#### Enhancements
+
+ * New `rpc_call_with_timeout` and `rpc_call_raw_with_timeout` functions for RPC calls with custom timeout
+ * New default timeout constant, `DEFAULT_RPC_TIMEOUT`, defaults to 10 seconds
+ * `RpcTimeout` error now includes the timeout duration in its message
 
 
 ## v0.8.0 (Nov 29, 2025)
 
-### Enhancements
+### erltf
+
+#### Enhancements
 
  * New convenience function `into_rex_response` for unwrapping `{rex, Result}` RPC response tuples
  * New helpers for common value comparisons: `is_undefined` and `is_nil_atom` helpers
  * `try_as_*` methods returning `Result`
 
+### erltf_serde
+
+#### Enhancements
+
+ * New trait, `OwnedTermExt`, provides two functions: `try_deserialize` and `try_deserialize_proplist`
+
+### edp_client
+
+(no changes)
+
+### edp_node
+
+#### Enhancements
+
+ * `Node::connect_to` and `Node::connect_to_hidden` helpers to reduce connection/node startup verbosity
+ * `rpc_call` now auto-unwraps `{rex, Result}` tuples; use `rpc_call_raw` for previous behavior
+ * Re-exports `OwnedTerm`, `Atom`, macros, and serde functions from `erltf` and `erltf_serde`
+
 
 ## v0.6.0 (Nov 29, 2025)
 
-### Enhancements
+### erltf
+
+#### Enhancements
 
  * New functions, `OwnedTerm::is_proplist` and `OwnedTerm::is_proplist_element`, for detecting Erlang proplists
 
@@ -127,12 +249,54 @@ This release introduces many helper functions for working with common Erlang ter
 
  * `OwnedTerm::proplist_iter` iterator over proplist key-value pairs
 
+### erltf_serde
+
+#### Enhancements
+
+ * Enhanced deserialization support for proplists: they are converted to maps using `OwnedTerm::to_map_recursive`
+
+### edp_client
+
+#### Enhancements
+
+ * Initial public release
+ * Erlang Distribution Protocol client implementation
+ * EPMD client for node discovery
+ * Handshake and message framing support
+
+### edp_node
+
+#### Enhancements
+
+ * Initial public release
+ * High-level node abstraction with process management
+ * GenServer and GenEvent behavior patterns
+ * Process linking and monitoring
+
 
 ## v0.5.0 (Nov 22, 2025)
 
-### Enhancements
+### erltf
+
+#### Enhancements
 
  * Initial public release
  * Erlang External Term Format encoding and decoding
  * Support for all standard Erlang term types
  * Compression support via flate2
+
+### erltf_serde
+
+#### Enhancements
+
+ * Initial public release
+ * Serde integration for Erlang External Term Format
+ * Serialization and deserialization between Rust types and Erlang terms
+
+### edp_client
+
+(not yet released)
+
+### edp_node
+
+(not yet released)
