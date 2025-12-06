@@ -3,7 +3,7 @@ members = ["crates/erltf", "crates/erltf_serde", "crates/erltf_serde_derive", "c
 resolver = "2"
 
 [workspace.package]
-version = "0.14.0"
+version = "0.15.0"
 edition = "2024"
 license = "MIT OR Apache-2.0"
 authors = ["Michael S. Klishin"]
@@ -11,11 +11,11 @@ repository = "https://github.com/michaelklishin/edp-rs"
 
 [workspace.dependencies]
 # Internal workspace crates
-erltf = { version = "0.14.0", path = "crates/erltf" }
-erltf_serde = { version = "0.14.0", path = "crates/erltf_serde" }
-erltf_serde_derive = { version = "0.14.0", path = "crates/erltf_serde_derive" }
-edp_client = { version = "0.14.0", path = "crates/edp_client" }
-edp_node = { version = "0.14.0", path = "crates/edp_node" }
+erltf = { version = "0.15.0", path = "crates/erltf" }
+erltf_serde = { version = "0.15.0", path = "crates/erltf_serde" }
+erltf_serde_derive = { version = "0.15.0", path = "crates/erltf_serde_derive" }
+edp_client = { version = "0.15.0", path = "crates/edp_client" }
+edp_node = { version = "0.15.0", path = "crates/edp_node" }
 
 # Proc-macro support
 proc-macro2 = "1.0"
