@@ -38,7 +38,8 @@ This set of libraries target Erlang/OTP 26 and 27. It should be compatible with 
 
 ## Examples
 
- * [`ets-browser`](https://github.com/michaelklishin/ets-browser) implements an ETS table browser tool using these libraries
+ * [`ets-browser`](https://github.com/michaelklishin/ets-browser) implements an ETS table browser
+ * [`khepri-browser`](https://github.com/michaelklishin/khepri-browser) is a [Khepri](https://github.com/rabbitmq/khepri) tree and projection browser
  * A number of integration examples can be found under `crates/edp_examples`.
 
 
