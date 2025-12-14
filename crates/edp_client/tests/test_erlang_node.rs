@@ -29,10 +29,14 @@ impl TestErlangNode {
             .spawn()?;
 
         let start = Instant::now();
+        let mut registered = false;
         loop {
             match try_epmd_client().await {
                 Ok(client) => match client.lookup_node(name).await {
-                    Ok(_) => break,
+                    Ok(_) => {
+                        registered = true;
+                        break;
+                    }
                     Err(_) => {
                         if start.elapsed() > Duration::from_secs(10) {
                             break;
@@ -49,7 +53,13 @@ impl TestErlangNode {
             }
         }
 
-        Ok(Self { child })
+        if registered {
+            Ok(Self { child })
+        } else {
+            let node = Self { child };
+            drop(node);
+            Err("Erlang node failed to register with EPMD within timeout".into())
+        }
     }
 }
 
