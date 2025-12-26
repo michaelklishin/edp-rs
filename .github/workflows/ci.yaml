@@ -10,8 +10,10 @@ on:
       - "Cargo.lock"
       - "crates/erltf/**"
       - "crates/erltf_serde/**"
+      - "crates/erltf_serde_derive/**"
       - "crates/edp_client/**"
       - "crates/edp_node/**"
+      - "crates/edp_examples_elixir/**"
   pull_request: {}
 
 env:
@@ -40,7 +42,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Lint (clippy)
-        run: cargo clippy --workspace --exclude edp_examples --all-features
+        run: cargo clippy --workspace --exclude edp_examples --exclude edp_examples_elixir --all-features
 
       - name: Lint (rustfmt)
         run: cargo fmt --all --check
@@ -62,10 +64,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Erlang/OTP
+      - name: Set up Erlang/OTP and Elixir
         uses: erlef/setup-beam@v1
         with:
           otp-version: '27'
+          elixir-version: '1.18'
           install-rebar: false
           install-hex: false
 

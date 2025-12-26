@@ -6,7 +6,7 @@ license.workspace = true
 authors.workspace = true
 repository.workspace = true
 description = "Serde integration for Erlang External Term Format"
-keywords = ["erlang", "serde", "serialization", "etf"]
+keywords = ["erlang", "serde", "serialization", "etf", "elixir"]
 categories = ["encoding"]
 
 [dependencies]
@@ -15,6 +15,11 @@ erltf_serde_derive = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
+[features]
+default = []
+elixir-interop = []
+
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+proptest = { workspace = true }

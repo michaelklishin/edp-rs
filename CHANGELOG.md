@@ -8,7 +8,10 @@
 
 ### erltf_serde
 
-(no changes yet)
+ * `elixir-interop` is a new feature that, when enabled, improves interop with Elixir.
+   For example, `Option::None` will be mapped to `nil` instead of `undefined`.
+
+   GitHub issues: [edp-rs#16](https://github.com/michaelklishin/edp-rs/discussions/16)
 
 ### edp_client
 

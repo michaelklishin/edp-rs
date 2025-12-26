@@ -14,7 +14,7 @@ This project was heavily inspired by [a set of Go libraries](https://github.com/
    almost always skipped by other implementations due to its complexity and imperfect documentation
  * Serde support
  * `crates/edp_client` and `crates/edp_node` provide higher-level abstractions
- * Support for Elixir struct mapping
+ * (Some) Support for Elixir interop
 
 
 ## Project Maturity
@@ -33,10 +33,12 @@ This set of libraries target Erlang/OTP 26 and 27. It should be compatible with 
  * `crates/erltf`: an Erlang Term Format implementation
  * `crates/erltf_serde`: Serde glue for `erltf`
  * `crates/erltf_serde_derive`: `derive`-oriented Serde glue for `erltf`
- * `crates/edp_examples`: various examples that demonstrate the usage of this library suite
+ * `crates/edp_examples`: examples that use Erlang
+ * `crates/edp_examples_elixir`: examples that use Elixir
 
 
-## Examples
+
+## Examples (Erlang)
 
  * [`ets-browser`](https://github.com/michaelklishin/ets-browser) implements an ETS table browser
  * [`khepri-browser`](https://github.com/michaelklishin/khepri-browser) is a [Khepri](https://github.com/rabbitmq/khepri) tree and projection browser
@@ -53,6 +55,15 @@ per second, see `CONTRIBUTING.md` to learn how to run the benchmarks.
 
 Actual throughput will vary from workload to workload.
 
+
+## Elixir Interoperability
+
+Elixir may be a BEAM-based language just like Erlang but it uses a lot of conventions that are not
+true for the rest of the BEAM ecosystem. This library suite provides some support for Elixir interop,
+including:
+
+ * Elixir struct mapping to Rust structs with `derive(ElixirStruct)`
+ * The `elixir-interop` feature that maps `Option::None` to `nil` instead of `undefined`
 
 
 ## Contributing
