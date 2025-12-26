@@ -1280,6 +1280,377 @@ impl OwnedTerm {
             OwnedTerm::Nil => 1,
         }
     }
+
+    /// Returns the elements of a 2-tuple, or None if not a 2-tuple.
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// let term = OwnedTerm::Tuple(vec![OwnedTerm::atom("ok"), OwnedTerm::integer(42)]);
+    /// if let Some((first, second)) = term.as_2_tuple() {
+    ///     assert!(first.is_atom_with_name("ok"));
+    ///     assert_eq!(second.as_integer(), Some(42));
+    /// }
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn as_2_tuple(&self) -> Option<(&OwnedTerm, &OwnedTerm)> {
+        match self {
+            OwnedTerm::Tuple(elements) if elements.len() == 2 => Some((&elements[0], &elements[1])),
+            _ => None,
+        }
+    }
+
+    /// Returns the elements of a 3-tuple, or None if not a 3-tuple.
+    #[inline]
+    #[must_use]
+    pub fn as_3_tuple(&self) -> Option<(&OwnedTerm, &OwnedTerm, &OwnedTerm)> {
+        match self {
+            OwnedTerm::Tuple(elements) if elements.len() == 3 => {
+                Some((&elements[0], &elements[1], &elements[2]))
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns the elements of a 4-tuple, or None if not a 4-tuple.
+    #[inline]
+    #[must_use]
+    pub fn as_4_tuple(&self) -> Option<(&OwnedTerm, &OwnedTerm, &OwnedTerm, &OwnedTerm)> {
+        match self {
+            OwnedTerm::Tuple(elements) if elements.len() == 4 => {
+                Some((&elements[0], &elements[1], &elements[2], &elements[3]))
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns the value from an `{:ok, value}` tuple, or None if not in that format.
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// let term = OwnedTerm::ok_tuple(OwnedTerm::integer(42));
+    /// assert_eq!(term.as_ok_tuple().and_then(|v| v.as_integer()), Some(42));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn as_ok_tuple(&self) -> Option<&OwnedTerm> {
+        match self.as_2_tuple() {
+            Some((first, second)) if first.is_atom_with_name("ok") => Some(second),
+            _ => None,
+        }
+    }
+
+    /// Returns the reason from an `{:error, reason}` tuple, or None if not in that format.
+    #[inline]
+    #[must_use]
+    pub fn as_error_tuple(&self) -> Option<&OwnedTerm> {
+        match self.as_2_tuple() {
+            Some((first, second)) if first.is_atom_with_name("error") => Some(second),
+            _ => None,
+        }
+    }
+
+    /// Converts an `{:ok, value}` or `{:error, reason}` tuple to a Result.
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// let ok_term = OwnedTerm::ok_tuple(OwnedTerm::integer(42));
+    /// assert!(ok_term.as_ok_error().is_ok());
+    ///
+    /// let err_term = OwnedTerm::error_tuple(OwnedTerm::atom("not_found"));
+    /// assert!(err_term.as_ok_error().is_err());
+    /// ```
+    #[inline]
+    pub fn as_ok_error(&self) -> Result<&OwnedTerm, &OwnedTerm> {
+        match self.as_2_tuple() {
+            Some((first, second)) if first.is_atom_with_name("ok") => Ok(second),
+            Some((first, second)) if first.is_atom_with_name("error") => Err(second),
+            _ => Err(self),
+        }
+    }
+
+    /// Returns true if this is the Elixir `nil` atom.
+    #[inline]
+    #[must_use]
+    pub fn is_elixir_nil(&self) -> bool {
+        self.is_atom_with_name("nil")
+    }
+
+    /// Returns true if this is the Erlang `undefined` atom.
+    #[inline]
+    #[must_use]
+    pub fn is_erlang_undefined(&self) -> bool {
+        self.is_atom_with_name("undefined")
+    }
+
+    /// Returns true if this is either `nil` or `undefined`.
+    #[inline]
+    #[must_use]
+    pub fn is_nil_like(&self) -> bool {
+        self.is_elixir_nil() || self.is_erlang_undefined()
+    }
+
+    /// Creates the Elixir `nil` atom.
+    #[inline]
+    #[must_use]
+    pub fn elixir_nil() -> Self {
+        OwnedTerm::atom("nil")
+    }
+
+    /// Creates the Erlang `undefined` atom.
+    #[inline]
+    #[must_use]
+    pub fn erlang_undefined() -> Self {
+        OwnedTerm::atom("undefined")
+    }
+
+    /// Returns true if this is an atom matching one of the provided names.
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// let term = OwnedTerm::atom("ok");
+    /// assert!(term.is_atom_one_of(&["ok", "error", "noreply"]));
+    /// assert!(!term.is_atom_one_of(&["stop", "continue"]));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn is_atom_one_of(&self, names: &[&str]) -> bool {
+        match self {
+            OwnedTerm::Atom(a) => names.iter().any(|&n| a == n),
+            _ => false,
+        }
+    }
+
+    /// Returns true if this term is an Elixir struct (a map with `__struct__` key).
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// use std::collections::BTreeMap;
+    ///
+    /// let mut map = BTreeMap::new();
+    /// map.insert(OwnedTerm::atom("__struct__"), OwnedTerm::atom("Elixir.MyApp.User"));
+    /// map.insert(OwnedTerm::atom("name"), OwnedTerm::string("Alice".to_string()));
+    /// let term = OwnedTerm::Map(map);
+    ///
+    /// assert!(term.is_elixir_struct());
+    /// assert_eq!(term.elixir_struct_module(), Some("Elixir.MyApp.User"));
+    /// ```
+    #[inline]
+    #[must_use]
+    pub fn is_elixir_struct(&self) -> bool {
+        self.elixir_struct_module().is_some()
+    }
+
+    /// Returns the module name if this is an Elixir struct.
+    #[inline]
+    #[must_use]
+    pub fn elixir_struct_module(&self) -> Option<&str> {
+        match self {
+            OwnedTerm::Map(m) => {
+                let struct_key = OwnedTerm::atom("__struct__");
+                m.get(&struct_key).and_then(|v| v.atom_name())
+            }
+            _ => None,
+        }
+    }
+
+    /// Returns true if this is an Elixir exception (has both `__struct__` and `__exception__` keys).
+    #[inline]
+    #[must_use]
+    pub fn is_elixir_exception(&self) -> bool {
+        match self {
+            OwnedTerm::Map(m) => {
+                let struct_key = OwnedTerm::atom("__struct__");
+                let exception_key = OwnedTerm::atom("__exception__");
+                m.contains_key(&struct_key) && m.get(&exception_key).is_some_and(|v| v.is_true())
+            }
+            _ => false,
+        }
+    }
+
+    /// Formats the term in Elixir inspect style for debugging.
+    ///
+    /// # Example
+    /// ```
+    /// use erltf::OwnedTerm;
+    /// assert_eq!(OwnedTerm::atom("ok").inspect(), ":ok");
+    /// assert_eq!(OwnedTerm::integer(42).inspect(), "42");
+    /// ```
+    #[must_use]
+    pub fn inspect(&self) -> String {
+        self.inspect_impl(0)
+    }
+
+    fn inspect_impl(&self, depth: usize) -> String {
+        if depth > 10 {
+            return "...".to_string();
+        }
+
+        match self {
+            OwnedTerm::Atom(a) => {
+                let name = a.as_str();
+                if name.starts_with("Elixir.") {
+                    name.strip_prefix("Elixir.").unwrap_or(name).to_string()
+                } else if name == "true" || name == "false" || name == "nil" {
+                    name.to_string()
+                } else if name.chars().all(|c| c.is_alphanumeric() || c == '_') && !name.is_empty()
+                {
+                    format!(":{name}")
+                } else {
+                    format!(":\"{}\"", name.replace('\"', "\\\""))
+                }
+            }
+            OwnedTerm::Integer(i) => i.to_string(),
+            OwnedTerm::Float(f) => {
+                if f.fract() == 0.0 {
+                    format!("{f:.1}")
+                } else {
+                    f.to_string()
+                }
+            }
+            OwnedTerm::Binary(b) => match std::str::from_utf8(b) {
+                Ok(s) if s.chars().all(|c| !c.is_control() || c == '\n' || c == '\t') => {
+                    format!("\"{}\"", s.replace('\"', "\\\""))
+                }
+                _ => {
+                    let bytes: Vec<String> = b.iter().take(10).map(|b| b.to_string()).collect();
+                    if b.len() > 10 {
+                        format!("<<{}, ...>>", bytes.join(", "))
+                    } else {
+                        format!("<<{}>>", bytes.join(", "))
+                    }
+                }
+            },
+            OwnedTerm::String(s) => format!("\"{}\"", s.replace('\"', "\\\"")),
+            OwnedTerm::List(elements) => {
+                if elements.is_empty() {
+                    "[]".to_string()
+                } else if self.is_charlist() {
+                    if let Some(s) = self.as_charlist_string() {
+                        return format!("~c\"{s}\"");
+                    }
+                    let items: Vec<String> = elements
+                        .iter()
+                        .take(20)
+                        .map(|e| e.inspect_impl(depth + 1))
+                        .collect();
+                    if elements.len() > 20 {
+                        format!("[{}, ...]", items.join(", "))
+                    } else {
+                        format!("[{}]", items.join(", "))
+                    }
+                } else if self.is_proplist() {
+                    let items: Vec<String> = elements
+                        .iter()
+                        .take(20)
+                        .filter_map(|e| {
+                            e.as_2_tuple().map(|(k, v)| {
+                                if let Some(name) = k.atom_name() {
+                                    format!("{}: {}", name, v.inspect_impl(depth + 1))
+                                } else {
+                                    format!(
+                                        "{{{}, {}}}",
+                                        k.inspect_impl(depth + 1),
+                                        v.inspect_impl(depth + 1)
+                                    )
+                                }
+                            })
+                        })
+                        .collect();
+                    if elements.len() > 20 {
+                        format!("[{}, ...]", items.join(", "))
+                    } else {
+                        format!("[{}]", items.join(", "))
+                    }
+                } else {
+                    let items: Vec<String> = elements
+                        .iter()
+                        .take(20)
+                        .map(|e| e.inspect_impl(depth + 1))
+                        .collect();
+                    if elements.len() > 20 {
+                        format!("[{}, ...]", items.join(", "))
+                    } else {
+                        format!("[{}]", items.join(", "))
+                    }
+                }
+            }
+            OwnedTerm::Tuple(elements) => {
+                let items: Vec<String> =
+                    elements.iter().map(|e| e.inspect_impl(depth + 1)).collect();
+                format!("{{{}}}", items.join(", "))
+            }
+            OwnedTerm::Map(m) => {
+                if let Some(module) = self.elixir_struct_module() {
+                    let module_name = module.strip_prefix("Elixir.").unwrap_or(module);
+                    let fields: Vec<String> = m
+                        .iter()
+                        .filter(|(k, _)| {
+                            !k.is_atom_with_name("__struct__")
+                                && !k.is_atom_with_name("__exception__")
+                        })
+                        .take(20)
+                        .map(|(k, v)| {
+                            if let Some(name) = k.atom_name() {
+                                format!("{}: {}", name, v.inspect_impl(depth + 1))
+                            } else {
+                                format!(
+                                    "{} => {}",
+                                    k.inspect_impl(depth + 1),
+                                    v.inspect_impl(depth + 1)
+                                )
+                            }
+                        })
+                        .collect();
+                    format!("%{}{{{}}}", module_name, fields.join(", "))
+                } else {
+                    let items: Vec<String> = m
+                        .iter()
+                        .take(20)
+                        .map(|(k, v)| {
+                            if let Some(name) = k.atom_name() {
+                                format!("{}: {}", name, v.inspect_impl(depth + 1))
+                            } else {
+                                format!(
+                                    "{} => {}",
+                                    k.inspect_impl(depth + 1),
+                                    v.inspect_impl(depth + 1)
+                                )
+                            }
+                        })
+                        .collect();
+                    if m.len() > 20 {
+                        format!("%{{{}, ...}}", items.join(", "))
+                    } else {
+                        format!("%{{{}}}", items.join(", "))
+                    }
+                }
+            }
+            OwnedTerm::Pid(p) => format!("#PID<{}>", p),
+            OwnedTerm::Port(p) => format!("#Port<{:?}>", p),
+            OwnedTerm::Reference(r) => format!("#Reference<{:?}>", r),
+            OwnedTerm::BigInt(b) => {
+                let sign = if b.sign.is_negative() { "-" } else { "" };
+                format!("{sign}<BigInt({} bytes)>", b.digits.len())
+            }
+            OwnedTerm::ExternalFun(f) => format!("&{}.{}/{}", f.module, f.function, f.arity),
+            OwnedTerm::InternalFun(f) => format!("#Function<{}/{}>", f.module, f.arity),
+            OwnedTerm::ImproperList { elements, tail } => {
+                let items: Vec<String> =
+                    elements.iter().map(|e| e.inspect_impl(depth + 1)).collect();
+                format!("[{} | {}]", items.join(", "), tail.inspect_impl(depth + 1))
+            }
+            OwnedTerm::BitBinary { bytes, bits } => {
+                format!("<<{} bytes, {} bits>>", bytes.len(), bits)
+            }
+            OwnedTerm::Nil => "[]".to_string(),
+        }
+    }
 }
 
 impl From<Atom> for OwnedTerm {

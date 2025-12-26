@@ -89,7 +89,7 @@ impl PidAllocator {
     /// typically during initialization or after receiving a new creation value
     /// from the remote node during the handshake.
     ///
-    /// While the atomic store itself is safe for concurrent use, concurrent calls to `set_creation()` during active allocation
+    /// While the atomic store itself is safe for concurrent use, concurrent calls to `set_creation` during active allocation
     /// may result in PIDs being created with inconsistent creation values.
     pub fn set_creation<C: Into<Creation>>(&self, creation: C) {
         self.creation.store(creation.into().0, Ordering::Relaxed)

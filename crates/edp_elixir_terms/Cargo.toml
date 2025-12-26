@@ -1,0 +1,15 @@
+[package]
+name = "edp_elixir_terms"
+description = "Elixir term construction helpers for edp-rs"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+
+[dependencies]
+erltf = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+proptest = { workspace = true }

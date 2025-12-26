@@ -34,6 +34,7 @@ This set of libraries target Erlang/OTP 26 and 27. It should be compatible with 
  * `crates/erltf`: an Erlang Term Format implementation
  * `crates/erltf_serde`: Serde glue for `erltf`
  * `crates/erltf_serde_derive`: `derive`-oriented Serde glue for `erltf`
+ * `crates/edp_elixir`: Elixir data type support
  * `crates/edp_examples`: examples that use Erlang
  * `crates/edp_examples_elixir`: examples that use Elixir
 
@@ -43,7 +44,7 @@ This set of libraries target Erlang/OTP 26 and 27. It should be compatible with 
 
  * [`ets-browser`](https://github.com/michaelklishin/ets-browser) implements an ETS table browser
  * [`khepri-browser`](https://github.com/michaelklishin/khepri-browser) is a [Khepri](https://github.com/rabbitmq/khepri) tree and projection browser
- * A number of integration examples can be found under `crates/edp_examples`.
+ * A number of integration examples can be found under `crates/edp_examples` and `crates/edp_examples_elixir`
 
 
 ## Throughput and Efficiency
@@ -65,6 +66,7 @@ including:
 
  * Elixir struct mapping to Rust structs with `derive(ElixirStruct)`
  * The `elixir-interop` feature that maps `Option::None` to `nil` instead of `undefined`
+ * The `edp_elixir` crate provides Rust representations of common Elixir types (Range, MapSet, Date/Time, exceptions) and GenServer message helpers
 
 
 ## Contributing

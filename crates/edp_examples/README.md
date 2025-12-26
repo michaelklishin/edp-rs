@@ -61,7 +61,7 @@ cargo run --package edp_examples --bin example_rabbitmq_status rabbit@my-server
 
 **Arguments:**
 
-- `[NODE_NAME]` (optional): The Erlang node name to connect to. Defaults to `rabbit@<hostname>` where `<hostname>` is automatically detected.
+* `[NODE_NAME]` (optional): The Erlang node name to connect to, defaults to `rabbit@<hostname>` where `<hostname>` is automatically detected
 
 **Expected Output:**
 
@@ -91,10 +91,9 @@ Tuple([
 
 **Troubleshooting:**
 
-1. **Connection refused**: Ensure RabbitMQ is running and listening on the distribution port (default: 25672)
-2. **Authentication failed**: Verify your `~/.erlang.cookie` matches the RabbitMQ node's cookie
-3. **EPMD lookup failed**: Check that EPMD is running (`epmd -names` should work)
-4. **Invalid node name**: Ensure the node name format is `name@host`
+1. **Connection refused**: make sure that a RabbitMQ 4.x node is running locally and port 25672 is open
+2. **Authentication failed**: verify that your `~/.erlang.cookie` matches the RabbitMQ node's cookie
+3. **Invalid node name**: Ensure the node name format is `name@host`
 
 ## Building Examples
 

@@ -27,7 +27,7 @@
 
 ### erltf_serde
 
- * `elixir-interop` is a new feature that, when enabled, improves interop with Elixir.
+ * `elixir-interop` is a new feature that, when enabled, improves interop with Elixir
    For example, `Option::None` will be mapped to `nil` instead of `undefined`.
 
    GitHub issues: [edp-rs#16](https://github.com/michaelklishin/edp-rs/discussions/16)
@@ -49,7 +49,7 @@
 
 ### erltf_serde
 
- * First class mapping of Elixir structs to Rust structs.
+ * First class mapping of Elixir structs to Rust structs
 
    Contributed by @scrogson.
 
@@ -125,7 +125,7 @@
 
 #### Bug Fixes
 
- * It wasn't possible to "roundtrip" a PID, e.g. during an RPC request-response sequence.
+ * It wasn't possible to "roundtrip" a PID, e.g. during an RPC request-response sequence
 
    Due to the `LOCAL_EXT` type tag encoding of PIDs, non-BEAM native implementations must pass
    around additional context for the encoding to be done correctly (the remote node would recognize the right Erlang process).

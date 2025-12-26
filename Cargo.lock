@@ -350,6 +350,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "edp_elixir_terms"
+version = "0.16.0"
+dependencies = [
+ "erltf",
+ "proptest",
+ "serde",
+]
+
+[[package]]
 name = "edp_examples"
 version = "0.1.0"
 dependencies = [

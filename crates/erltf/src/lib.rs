@@ -76,3 +76,48 @@ macro_rules! erl_int {
         $crate::OwnedTerm::Integer($val as i64)
     };
 }
+
+/// Creates an Elixir-style keyword list (list of 2-tuples with atom keys).
+///
+/// # Example
+/// ```
+/// use erltf::keyword;
+///
+/// let kw = keyword![
+///     name: "Alice",
+///     age: 30,
+///     active: true,
+/// ];
+///
+/// assert!(kw.is_proplist());
+/// assert_eq!(kw.proplist_get_atom_key("name").and_then(|t| t.as_erlang_string()), Some("Alice".to_string()));
+/// ```
+#[macro_export]
+macro_rules! keyword {
+    ($($key:ident : $value:expr),* $(,)?) => {{
+        $crate::OwnedTerm::List(vec![
+            $(
+                $crate::OwnedTerm::Tuple(vec![
+                    $crate::OwnedTerm::Atom($crate::Atom::new(stringify!($key))),
+                    $value.into()
+                ])
+            ),*
+        ])
+    }};
+}
+
+/// Creates an Elixir module atom (automatically prefixes with "Elixir.").
+///
+/// # Example
+/// ```
+/// use erltf::elixir_module;
+///
+/// let module = elixir_module!("MyApp.Users.User");
+/// assert!(module.is_atom_with_name("Elixir.MyApp.Users.User"));
+/// ```
+#[macro_export]
+macro_rules! elixir_module {
+    ($name:expr) => {
+        $crate::OwnedTerm::Atom($crate::Atom::new(&format!("Elixir.{}", $name)))
+    };
+}

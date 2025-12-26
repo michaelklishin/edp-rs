@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/erltf", "crates/erltf_serde", "crates/erltf_serde_derive", "crates/edp_client", "crates/edp_node", "crates/edp_examples", "crates/edp_examples_elixir", "crates/interop_with_erlpack_typescript", "crates/interop_with_erlpack_python"]
+members = ["crates/erltf", "crates/erltf_serde", "crates/erltf_serde_derive", "crates/edp_client", "crates/edp_node", "crates/edp_examples", "crates/edp_examples_elixir", "crates/edp_elixir_terms", "crates/interop_with_erlpack_typescript", "crates/interop_with_erlpack_python"]
 resolver = "2"
 
 [workspace.package]
