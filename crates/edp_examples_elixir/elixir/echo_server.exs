@@ -33,11 +33,10 @@ defmodule EchoServer do
 end
 
 IO.puts("Echo server started on node #{Node.self()}")
-IO.puts("Cookie: #{Node.get_cookie()}")
 IO.puts("")
 IO.puts("Available functions:")
-IO.puts("  EchoServer.echo(term)        - returns the term unchanged")
-IO.puts("  EchoServer.echo_tagged(term) - returns {:echo, term}")
+IO.puts(" * EchoServer.echo(term): returns the term unchanged")
+IO.puts(" * EchoServer.echo_tagged(term): returns {:echo, term}")
 IO.puts("")
 IO.puts("Press Ctrl+C twice to exit")
 
