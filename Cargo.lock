@@ -530,6 +530,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "interop_with_erlpack_python"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "erltf",
+]
+
+[[package]]
+name = "interop_with_erlpack_typescript"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "erltf",
+]
+
+[[package]]
 name = "is_terminal_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

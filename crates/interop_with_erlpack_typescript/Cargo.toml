@@ -1,0 +1,17 @@
+[package]
+name = "interop_with_erlpack_typescript"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "encode_for_typescript"
+path = "src/encode_for_ts.rs"
+
+[[bin]]
+name = "decode_from_typescript"
+path = "src/decode_from_ts.rs"
+
+[dependencies]
+erltf = { path = "../erltf" }
+anyhow = { workspace = true }

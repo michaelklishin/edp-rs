@@ -1,0 +1,11 @@
+[project]
+name = "interop-with-erlpack-python"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+    "erlpack>=0.1.4",
+]
+
+[project.scripts]
+decode = "python.decode_from_rust:main"
+encode = "python.encode_for_rust:main"

@@ -1,0 +1,17 @@
+{
+  "name": "interop-with-erlpack-typescript",
+  "version": "0.1.0",
+  "scripts": {
+    "decode": "npx ts-node --esm typescript/decode_from_rust.ts",
+    "encode": "npx ts-node --esm typescript/encode_for_rust.ts"
+  },
+  "dependencies": {
+    "erlpack": "^0.1.4"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "ts-node": "^10",
+    "tsx": "^4.21.0",
+    "typescript": "^5"
+  }
+}

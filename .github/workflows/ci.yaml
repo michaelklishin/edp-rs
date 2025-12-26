@@ -42,7 +42,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Lint (clippy)
-        run: cargo clippy --workspace --exclude edp_examples --exclude edp_examples_elixir --all-features
+        run: cargo clippy --workspace --exclude edp_examples --exclude edp_examples_elixir --exclude interop_with_erlpack_python --exclude interop_with_erlpack_typescript --all-features
 
       - name: Lint (rustfmt)
         run: cargo fmt --all --check
@@ -83,7 +83,7 @@ jobs:
       - uses: taiki-e/install-action@nextest
 
       - name: Build
-        run: cargo build --workspace --exclude edp_examples --all-features
+        run: cargo build --workspace --exclude edp_examples --exclude interop_with_erlpack_python --exclude interop_with_erlpack_typescript --all-features
 
       - name: Run all tests
-        run: RUST_BACKTRACE=1 cargo nextest run --workspace --exclude edp_examples --no-fail-fast --all-features
+        run: RUST_BACKTRACE=1 cargo nextest run --workspace --exclude edp_examples --exclude interop_with_erlpack_python --exclude interop_with_erlpack_typescript --no-fail-fast --all-features

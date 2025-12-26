@@ -1,0 +1,80 @@
+name: erlpack Interop
+
+on:
+  push:
+    branches:
+      - "main"
+    paths:
+      - ".github/workflows/erlpack-interop.yaml"
+      - "crates/erltf/**"
+      - "crates/interop_with_erlpack_python/**"
+      - "crates/interop_with_erlpack_typescript/**"
+  pull_request:
+    paths:
+      - ".github/workflows/erlpack-interop.yaml"
+      - "crates/erltf/**"
+      - "crates/interop_with_erlpack_python/**"
+      - "crates/interop_with_erlpack_typescript/**"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  python-interop:
+    name: Python erlpack Interop
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install erlpack
+        run: pip install erlpack
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust binaries
+        run: cargo build --package interop_with_erlpack_python
+
+      - name: Test Rust encode → Python decode
+        run: |
+          cargo run --bin encode_for_python | python3 crates/interop_with_erlpack_python/python/decode_from_rust.py
+
+      - name: Test Python encode → Rust decode
+        run: |
+          python3 crates/interop_with_erlpack_python/python/encode_for_rust.py | cargo run --bin decode_from_python
+
+  typescript-interop:
+    name: TypeScript erlpack Interop
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install npm dependencies
+        working-directory: crates/interop_with_erlpack_typescript
+        run: npm install
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Build Rust binaries
+        run: cargo build --package interop_with_erlpack_typescript
+
+      - name: Test Rust encode → TypeScript decode
+        run: |
+          cargo run --bin encode_for_typescript | npx tsx crates/interop_with_erlpack_typescript/typescript/decode_from_rust.ts
+
+      - name: Test TypeScript encode → Rust decode
+        run: |
+          npx tsx crates/interop_with_erlpack_typescript/typescript/encode_for_rust.ts | cargo run --bin decode_from_typescript
