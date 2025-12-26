@@ -367,6 +367,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "edp_examples_elixir"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "edp_client",
+ "edp_node",
+ "erltf",
+ "erltf_serde",
+ "hostname",
+ "tokio",
+]
+
+[[package]]
 name = "edp_node"
 version = "0.15.0"
 dependencies = [
@@ -407,6 +420,7 @@ version = "0.15.0"
 dependencies = [
  "erltf",
  "erltf_serde_derive",
+ "proptest",
  "serde",
  "serde_json",
  "thiserror",

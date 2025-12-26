@@ -12,6 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Serde integration for the Erlang Term Format.
+//!
+//! # Features
+//!
+//! ## `elixir-interop`
+//!
+//! Enables Elixir conventions for `Option` types:
+//!
+//! * `Option::None` serializes as `nil` (Elixir) instead of `undefined` (Erlang)
+//! * Both `nil` and `undefined` deserialize as `Option::None`
+
 mod de;
 pub mod elixir;
 mod error;

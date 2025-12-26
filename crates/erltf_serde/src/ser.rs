@@ -107,7 +107,14 @@ impl SerdeSerializer for &mut Serializer {
     }
 
     fn serialize_none(self) -> Result<OwnedTerm> {
-        Ok(OwnedTerm::Atom(Atom::new("undefined")))
+        #[cfg(feature = "elixir-interop")]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("nil")))
+        }
+        #[cfg(not(feature = "elixir-interop"))]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("undefined")))
+        }
     }
 
     fn serialize_some<T: ?Sized + Serialize>(self, value: &T) -> Result<OwnedTerm> {

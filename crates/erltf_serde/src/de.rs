@@ -294,6 +294,8 @@ impl<'de> SerdeDeserializer<'de> for &mut Deserializer<'de> {
     fn deserialize_option<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
         match self.term {
             OwnedTerm::Atom(atom) if atom.as_str() == "undefined" => visitor.visit_none(),
+            #[cfg(feature = "elixir-interop")]
+            OwnedTerm::Atom(atom) if atom.as_str() == "nil" => visitor.visit_none(),
             _ => visitor.visit_some(self),
         }
     }

@@ -1,0 +1,21 @@
+[package]
+name = "edp_examples_elixir"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "example_elixir_echo"
+path = "src/elixir_echo.rs"
+
+[dependencies]
+edp_client = { path = "../edp_client" }
+edp_node = { path = "../edp_node" }
+erltf = { path = "../erltf" }
+erltf_serde = { path = "../erltf_serde", features = ["elixir-interop"] }
+tokio = { workspace = true, default-features = false, features = ["rt", "rt-multi-thread", "macros", "signal"] }
+anyhow = { workspace = true }
+hostname = { workspace = true }
+
+[dev-dependencies]
+hostname = { workspace = true }
