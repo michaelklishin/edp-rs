@@ -66,9 +66,17 @@ consider the following tools:
  * When debugging examples, connect to Erlang or RabbitMQ nodes using `erl` and the remote shell module
  * Use Erlang tracing and traffic captures to compare example output to that of `erl` processes
 
+## Tests
+
+Tests should be descriptive and easy to read. Use property-based tests with `proptest` for edge cases
+in addition to unit tests.
+
 ## Comments
 
- * Only add very important comments, both in tests and in the implementation
+ * Only add important comments that express the non-obvious intent, both in tests and in the implementation
+ * Keep the comments short
+ * Pay attention to the grammar of your comments, including punctuation, full stops, articles, and so on
+ * Do not add `()` to function names or references: use `KeyValueAccess.kv_get` and not `KeyValueAccess.kv_get()`
 
 ## Git Instructions
 
