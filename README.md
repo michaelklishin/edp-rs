@@ -1,6 +1,7 @@
 # Erlang Distribution Protocol Client Toolkit for Rust
 
-This is a set of Rust libraries that implement the [Erlang External Term Format](https://www.erlang.org/docs/27/apps/erts/erl_ext_dist.html) and the [Erlang Distribution Protocol](https://www.erlang.org/docs/27/apps/erts/erl_dist_protocol).
+This is a set of Rust libraries that implement the [Erlang External Term Format](https://www.erlang.org/docs/27/apps/erts/erl_ext_dist.html) and the [Erlang Distribution Protocol](https://www.erlang.org/docs/27/apps/erts/erl_dist_protocol),
+and provides a higher-level API for Rust/Erlang (or Rust/Elixir) interoperability based on the ETF.
 
 ### Inspiration
 
