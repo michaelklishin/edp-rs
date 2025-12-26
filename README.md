@@ -58,7 +58,7 @@ Actual throughput will vary from workload to workload.
 
 ## Elixir Interoperability
 
-Elixir maybe a BEAM-based language just like Erlang but it uses a lot of conventions that are not
+Elixir may be a BEAM-based language just like Erlang but it uses a lot of conventions that are not
 true for the rest of the BEAM ecosystem. This library suite provides some support for Elixir interop,
 including:
 

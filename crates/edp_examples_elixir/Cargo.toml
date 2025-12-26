@@ -16,6 +16,3 @@ erltf_serde = { path = "../erltf_serde", features = ["elixir-interop"] }
 tokio = { workspace = true, default-features = false, features = ["rt", "rt-multi-thread", "macros", "signal"] }
 anyhow = { workspace = true }
 hostname = { workspace = true }
-
-[dev-dependencies]
-hostname = { workspace = true }
