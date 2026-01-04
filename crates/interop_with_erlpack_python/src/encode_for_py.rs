@@ -16,6 +16,7 @@
 //! Each term is prefixed with a 4-byte big-endian length.
 
 use std::collections::BTreeMap;
+use std::io;
 use std::io::Write;
 
 use erltf::{Atom, OwnedTerm, encode};
@@ -106,7 +107,7 @@ fn main() -> anyhow::Result<()> {
         OwnedTerm::Atom(Atom::new("error")),
     ];
 
-    let stdout = std::io::stdout();
+    let stdout = io::stdout();
     let mut handle = stdout.lock();
 
     for term in test_cases {

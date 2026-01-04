@@ -17,6 +17,7 @@
 //! These tests require Node.js and npm to be installed, and `npm install` to have
 //! been run in this crate's directory.
 
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 fn npm_installed() -> bool {
@@ -67,7 +68,6 @@ fn test_rust_encode_typescript_decode() {
         .expect("Failed to spawn TypeScript decoder");
 
     {
-        use std::io::Write;
         let stdin = ts_process.stdin.as_mut().unwrap();
         stdin.write_all(&rust_output.stdout).unwrap();
     }
@@ -128,7 +128,6 @@ fn test_typescript_encode_rust_decode() {
         .expect("Failed to spawn Rust decoder");
 
     {
-        use std::io::Write;
         let stdin = rust_process.stdin.as_mut().unwrap();
         stdin.write_all(&ts_output.stdout).unwrap();
     }

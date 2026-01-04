@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use edp_client::framing::{FrameMode, MessageDeframer, MessageFramer};
-use std::io::Cursor;
+use std::io::{self, Cursor};
 
 #[test]
 fn test_handshake_framing() {
@@ -88,6 +88,6 @@ async fn test_message_too_large_error() {
 
     assert!(result.is_err());
     let err = result.unwrap_err();
-    assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(err.kind(), io::ErrorKind::InvalidData);
     assert!(err.to_string().contains("Message too large"));
 }

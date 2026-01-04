@@ -19,6 +19,7 @@ use crate::errors::{Error, Result};
 use crate::flags::DistributionFlags;
 use bytes::{Buf, BufMut, BytesMut};
 use std::fmt;
+use std::str;
 
 /// Handshake protocol version (version 6 was introduced in Erlang/OTP 23.0)
 pub const PROTOCOL_VERSION: u16 = 6;
@@ -168,7 +169,7 @@ impl SendName {
         }
 
         let name_bytes = &buf[..name_len];
-        let name = std::str::from_utf8(name_bytes)
+        let name = str::from_utf8(name_bytes)
             .map_err(|_| Error::InvalidHandshakeMessage("Invalid UTF-8 in node name".to_string()))?
             .to_owned();
 
@@ -216,7 +217,7 @@ impl StatusMessage {
             )));
         }
 
-        let status_str = std::str::from_utf8(buf)
+        let status_str = str::from_utf8(buf)
             .map_err(|_| Error::InvalidHandshakeMessage("Invalid UTF-8 in status".to_string()))?;
 
         let status = match status_str {
@@ -321,7 +322,7 @@ impl Challenge {
         }
 
         let name_bytes = &buf[..name_len];
-        let name = std::str::from_utf8(name_bytes)
+        let name = str::from_utf8(name_bytes)
             .map_err(|_| Error::InvalidHandshakeMessage("Invalid UTF-8 in node name".to_string()))?
             .to_owned();
 

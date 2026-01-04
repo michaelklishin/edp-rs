@@ -14,8 +14,7 @@
 
 use crate::errors::{Error, Result};
 use crate::types::SequenceId;
-use std::collections::HashMap;
-use std::collections::hash_map::Entry;
+use std::collections::{HashMap, hash_map::Entry};
 use std::time::{Duration, Instant};
 use tracing::trace;
 

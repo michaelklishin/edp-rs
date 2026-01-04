@@ -17,8 +17,8 @@ use erltf::term::OwnedTerm;
 use erltf::types::Atom;
 use serde::de::{DeserializeSeed, EnumAccess, MapAccess, SeqAccess, VariantAccess, Visitor};
 use serde::{Deserialize, Deserializer as SerdeDeserializer};
-use std::collections::BTreeMap;
-use std::collections::btree_map;
+use std::collections::{BTreeMap, btree_map};
+use std::str;
 use std::sync::OnceLock;
 
 pub fn from_bytes<T: for<'a> Deserialize<'a>>(bytes: &[u8]) -> Result<T> {
@@ -88,7 +88,7 @@ impl<'de> SerdeDeserializer<'de> for &mut Deserializer<'de> {
             OwnedTerm::Integer(i) => visitor.visit_i64(*i),
             OwnedTerm::Float(f) => visitor.visit_f64(*f),
             OwnedTerm::Binary(b) => {
-                if let Ok(s) = std::str::from_utf8(b) {
+                if let Ok(s) = str::from_utf8(b) {
                     visitor.visit_str(s)
                 } else {
                     visitor.visit_bytes(b)
@@ -261,7 +261,7 @@ impl<'de> SerdeDeserializer<'de> for &mut Deserializer<'de> {
     fn deserialize_str<V: Visitor<'de>>(self, visitor: V) -> Result<V::Value> {
         match self.term {
             OwnedTerm::Binary(b) => {
-                let s = std::str::from_utf8(b).map_err(|e| Error::InvalidValue(e.to_string()))?;
+                let s = str::from_utf8(b).map_err(|e| Error::InvalidValue(e.to_string()))?;
                 visitor.visit_borrowed_str(s)
             }
             OwnedTerm::String(s) => visitor.visit_borrowed_str(s),

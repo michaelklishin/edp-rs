@@ -14,12 +14,13 @@
 
 //! Reads ETF-encoded terms from stdin (with 4-byte length prefix) and decodes them.
 
+use std::io;
 use std::io::Read;
 
 use erltf::decode;
 
 fn main() -> anyhow::Result<()> {
-    let stdin = std::io::stdin();
+    let stdin = io::stdin();
     let mut handle = stdin.lock();
 
     let mut count = 0;
@@ -27,7 +28,7 @@ fn main() -> anyhow::Result<()> {
         let mut len_buf = [0u8; 4];
         match handle.read_exact(&mut len_buf) {
             Ok(()) => {}
-            Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => break,
+            Err(e) if e.kind() == io::ErrorKind::UnexpectedEof => break,
             Err(e) => return Err(e.into()),
         }
 

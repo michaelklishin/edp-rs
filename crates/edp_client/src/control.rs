@@ -20,6 +20,7 @@
 use crate::errors::{Error, Result};
 use erltf::OwnedTerm;
 use std::convert::TryFrom;
+use std::mem;
 
 /// Control message types (first element of control tuple)
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -359,19 +360,19 @@ impl ControlMessage {
 
         match ControlMessageType::from_u8(msg_type) {
             Some(ControlMessageType::Link) if elements.len() == 3 => Ok(ControlMessage::Link {
-                from_pid: std::mem::take(&mut elements[1]),
-                to_pid: std::mem::take(&mut elements[2]),
+                from_pid: mem::take(&mut elements[1]),
+                to_pid: mem::take(&mut elements[2]),
             }),
 
             Some(ControlMessageType::Send) if elements.len() == 3 => Ok(ControlMessage::Send {
-                cookie: std::mem::take(&mut elements[1]),
-                to_pid: std::mem::take(&mut elements[2]),
+                cookie: mem::take(&mut elements[1]),
+                to_pid: mem::take(&mut elements[2]),
             }),
 
             Some(ControlMessageType::Exit) if elements.len() == 4 => Ok(ControlMessage::Exit {
-                from_pid: std::mem::take(&mut elements[1]),
-                to_pid: std::mem::take(&mut elements[2]),
-                reason: std::mem::take(&mut elements[3]),
+                from_pid: mem::take(&mut elements[1]),
+                to_pid: mem::take(&mut elements[2]),
+                reason: mem::take(&mut elements[3]),
             }),
 
             Some(ControlMessageType::UnlinkId) if elements.len() == 4 => {

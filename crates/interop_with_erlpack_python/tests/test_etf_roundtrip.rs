@@ -17,6 +17,7 @@
 //! These tests require Python 3 and erlpack to be installed:
 //! `pip install erlpack`
 
+use std::io::Write;
 use std::process::{Command, Stdio};
 
 fn python_available() -> bool {
@@ -69,7 +70,6 @@ fn test_rust_encode_python_decode() {
         .expect("Failed to spawn Python decoder");
 
     {
-        use std::io::Write;
         let stdin = py_process.stdin.as_mut().unwrap();
         stdin.write_all(&rust_output.stdout).unwrap();
     }
@@ -130,7 +130,6 @@ fn test_python_encode_rust_decode() {
         .expect("Failed to spawn Rust decoder");
 
     {
-        use std::io::Write;
         let stdin = rust_process.stdin.as_mut().unwrap();
         stdin.write_all(&py_output.stdout).unwrap();
     }

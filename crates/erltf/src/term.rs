@@ -19,7 +19,7 @@ use crate::types::{
 use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt;
-use std::hash::{Hash, Hasher};
+use std::hash::{BuildHasher, Hash, Hasher};
 use std::mem::discriminant;
 use std::ops::Index;
 use std::sync::{Arc, OnceLock};
@@ -1754,9 +1754,7 @@ impl From<BTreeMap<Self, Self>> for OwnedTerm {
     }
 }
 
-impl<K: Into<OwnedTerm>, V: Into<OwnedTerm>, S: std::hash::BuildHasher> From<HashMap<K, V, S>>
-    for OwnedTerm
-{
+impl<K: Into<OwnedTerm>, V: Into<OwnedTerm>, S: BuildHasher> From<HashMap<K, V, S>> for OwnedTerm {
     fn from(m: HashMap<K, V, S>) -> Self {
         let map = m.into_iter().map(|(k, v)| (k.into(), v.into())).collect();
         OwnedTerm::Map(map)
