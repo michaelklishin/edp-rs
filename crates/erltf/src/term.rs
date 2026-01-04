@@ -2774,7 +2774,14 @@ impl<'de> Visitor<'de> for OwnedTermVisitor {
     }
 
     fn visit_unit<E>(self) -> Result<OwnedTerm, E> {
-        Ok(OwnedTerm::Nil)
+        #[cfg(feature = "elixir-interop")]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("nil")))
+        }
+        #[cfg(not(feature = "elixir-interop"))]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("undefined")))
+        }
     }
 
     fn visit_seq<A>(self, mut seq: A) -> Result<OwnedTerm, A::Error>
