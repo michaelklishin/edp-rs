@@ -1,5 +1,24 @@
 # Change Log
 
+## v0.17.0 (in development)
+
+### erltf
+
+(no changes yet)
+
+### erltf_serde
+
+(no changes yet)
+
+### edp_client
+
+(no changes yet)
+
+### edp_node
+
+(no changes yet)
+
+
 ## v0.16.0 (Jan 3, 2026)
 
 ### erltf

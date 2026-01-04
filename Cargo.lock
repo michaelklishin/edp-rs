@@ -335,7 +335,7 @@ dependencies = [
 
 [[package]]
 name = "edp_client"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "bitflags",
  "bytes",
@@ -351,7 +351,7 @@ dependencies = [
 
 [[package]]
 name = "edp_elixir_terms"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "erltf",
  "proptest",
@@ -390,7 +390,7 @@ dependencies = [
 
 [[package]]
 name = "edp_node"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "dashmap",
  "edp_client",
@@ -410,7 +410,7 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "erltf"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "bytes",
  "criterion",
@@ -425,7 +425,7 @@ dependencies = [
 
 [[package]]
 name = "erltf_serde"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "erltf",
  "erltf_serde_derive",
@@ -437,7 +437,7 @@ dependencies = [
 
 [[package]]
 name = "erltf_serde_derive"
-version = "0.16.0"
+version = "0.17.0"
 dependencies = [
  "proc-macro2",
  "quote",
