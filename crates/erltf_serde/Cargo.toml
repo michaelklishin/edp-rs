@@ -10,14 +10,14 @@ keywords = ["erlang", "serde", "serialization", "etf", "elixir"]
 categories = ["encoding"]
 
 [dependencies]
-erltf = { workspace = true }
+erltf = { workspace = true, features = ["serde"] }
 erltf_serde_derive = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
 [features]
 default = []
-elixir-interop = []
+elixir-interop = ["erltf/elixir-interop"]
 
 [dev-dependencies]
 serde = { workspace = true, features = ["derive"] }

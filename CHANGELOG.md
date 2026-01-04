@@ -4,11 +4,16 @@
 
 ### erltf
 
-(no changes yet)
+ * `OwnedTerm` now implements `Serialize` and `Deserialize` when the `serde` feature is enabled,
+   allowing it to be used as a flexible "catch-all" field in structs (similar to `serde_json::Value`)
+
+   GitHub discussion: [#22](https://github.com/michaelklishin/edp-rs/discussions/22)
+
+ * `Option::None` deserialization now respects `elixir-interop` and deserializes to `Atom("nil")` instead of `Atom("undefined")`
 
 ### erltf_serde
 
-(no changes yet)
+ * New `elixir-interop` feature forwarded from `erltf`
 
 ### edp_client
 

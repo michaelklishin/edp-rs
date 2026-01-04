@@ -15,6 +15,12 @@ bytes = { workspace = true }
 nom = { workspace = true }
 log = { workspace = true }
 flate2 = { workspace = true }
+serde = { workspace = true, optional = true }
+
+[features]
+default = []
+serde = ["dep:serde"]
+elixir-interop = []
 
 [dev-dependencies]
 proptest = { workspace = true }

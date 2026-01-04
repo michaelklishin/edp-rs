@@ -24,6 +24,11 @@ use std::mem::discriminant;
 use std::ops::Index;
 use std::sync::{Arc, OnceLock};
 
+#[cfg(feature = "serde")]
+use serde::de::{Deserialize, Deserializer, MapAccess, SeqAccess, Visitor};
+#[cfg(feature = "serde")]
+use serde::ser::{Serialize, SerializeMap, SerializeSeq, Serializer};
+
 #[derive(Debug, Clone, PartialEq, Default)]
 pub enum OwnedTerm {
     Atom(Atom),
@@ -2614,4 +2619,193 @@ fn compare_term_lists(a: &[OwnedTerm], b: &[OwnedTerm]) -> Ordering {
         }
     }
     a.len().cmp(&b.len())
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for OwnedTerm {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match self {
+            OwnedTerm::Atom(atom) => match atom.as_str() {
+                "true" => serializer.serialize_bool(true),
+                "false" => serializer.serialize_bool(false),
+                "nil" | "undefined" => serializer.serialize_none(),
+                s => serializer.serialize_str(s),
+            },
+            OwnedTerm::Integer(i) => serializer.serialize_i64(*i),
+            OwnedTerm::Float(f) => serializer.serialize_f64(*f),
+            OwnedTerm::Binary(b) => serializer.serialize_bytes(b),
+            OwnedTerm::String(s) => serializer.serialize_str(s),
+            OwnedTerm::List(elements) => {
+                let mut seq = serializer.serialize_seq(Some(elements.len()))?;
+                for elem in elements {
+                    seq.serialize_element(elem)?;
+                }
+                seq.end()
+            }
+            OwnedTerm::Tuple(elements) => {
+                let mut seq = serializer.serialize_seq(Some(elements.len()))?;
+                for elem in elements {
+                    seq.serialize_element(elem)?;
+                }
+                seq.end()
+            }
+            OwnedTerm::Map(m) => {
+                let mut map = serializer.serialize_map(Some(m.len()))?;
+                for (k, v) in m {
+                    map.serialize_entry(k, v)?;
+                }
+                map.end()
+            }
+            OwnedTerm::Nil => {
+                let seq = serializer.serialize_seq(Some(0))?;
+                seq.end()
+            }
+            OwnedTerm::BigInt(big) => {
+                if big.digits.len() <= 8 {
+                    let mut bytes = [0u8; 8];
+                    bytes[..big.digits.len()].copy_from_slice(&big.digits);
+                    let val = u64::from_le_bytes(bytes);
+                    if big.sign.is_negative() {
+                        if val <= i64::MAX as u64 {
+                            serializer.serialize_i64(-(val as i64))
+                        } else {
+                            serializer.serialize_bytes(&big.digits)
+                        }
+                    } else {
+                        serializer.serialize_u64(val)
+                    }
+                } else {
+                    serializer.serialize_bytes(&big.digits)
+                }
+            }
+            OwnedTerm::ImproperList { elements, tail } => {
+                let mut seq = serializer.serialize_seq(Some(elements.len() + 1))?;
+                for elem in elements {
+                    seq.serialize_element(elem)?;
+                }
+                seq.serialize_element(tail.as_ref())?;
+                seq.end()
+            }
+            OwnedTerm::BitBinary { bytes, .. } => serializer.serialize_bytes(bytes),
+            OwnedTerm::Pid(pid) => serializer.serialize_str(&pid.to_string()),
+            OwnedTerm::Port(port) => serializer.serialize_str(&format!("{:?}", port)),
+            OwnedTerm::Reference(r) => serializer.serialize_str(&format!("{:?}", r)),
+            OwnedTerm::ExternalFun(f) => serializer.serialize_str(&format!("{:?}", f)),
+            OwnedTerm::InternalFun(f) => serializer.serialize_str(&format!("{:?}", f)),
+        }
+    }
+}
+
+#[cfg(feature = "serde")]
+struct OwnedTermVisitor;
+
+#[cfg(feature = "serde")]
+impl<'de> Visitor<'de> for OwnedTermVisitor {
+    type Value = OwnedTerm;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("any Erlang term")
+    }
+
+    fn visit_bool<E>(self, v: bool) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Atom(Atom::new(if v { "true" } else { "false" })))
+    }
+
+    fn visit_i64<E>(self, v: i64) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Integer(v))
+    }
+
+    fn visit_u64<E>(self, v: u64) -> Result<OwnedTerm, E> {
+        if v <= i64::MAX as u64 {
+            Ok(OwnedTerm::Integer(v as i64))
+        } else {
+            let bytes = v.to_le_bytes().to_vec();
+            Ok(OwnedTerm::BigInt(BigInt::new(false, bytes)))
+        }
+    }
+
+    fn visit_f64<E>(self, v: f64) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Float(v))
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v.as_bytes().to_vec()))
+    }
+
+    fn visit_borrowed_str<E>(self, v: &'de str) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v.as_bytes().to_vec()))
+    }
+
+    fn visit_string<E>(self, v: String) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v.into_bytes()))
+    }
+
+    fn visit_bytes<E>(self, v: &[u8]) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v.to_vec()))
+    }
+
+    fn visit_borrowed_bytes<E>(self, v: &'de [u8]) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v.to_vec()))
+    }
+
+    fn visit_byte_buf<E>(self, v: Vec<u8>) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Binary(v))
+    }
+
+    fn visit_none<E>(self) -> Result<OwnedTerm, E> {
+        #[cfg(feature = "elixir-interop")]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("nil")))
+        }
+        #[cfg(not(feature = "elixir-interop"))]
+        {
+            Ok(OwnedTerm::Atom(Atom::new("undefined")))
+        }
+    }
+
+    fn visit_some<D>(self, deserializer: D) -> Result<OwnedTerm, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Deserialize::deserialize(deserializer)
+    }
+
+    fn visit_unit<E>(self) -> Result<OwnedTerm, E> {
+        Ok(OwnedTerm::Nil)
+    }
+
+    fn visit_seq<A>(self, mut seq: A) -> Result<OwnedTerm, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut elements = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+        while let Some(elem) = seq.next_element::<OwnedTerm>()? {
+            elements.push(elem);
+        }
+        Ok(OwnedTerm::List(elements))
+    }
+
+    fn visit_map<A>(self, mut map: A) -> Result<OwnedTerm, A::Error>
+    where
+        A: MapAccess<'de>,
+    {
+        let mut m = BTreeMap::new();
+        while let Some((k, v)) = map.next_entry::<OwnedTerm, OwnedTerm>()? {
+            m.insert(k, v);
+        }
+        Ok(OwnedTerm::Map(m))
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for OwnedTerm {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_any(OwnedTermVisitor)
+    }
 }
