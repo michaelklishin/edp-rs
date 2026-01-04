@@ -15,6 +15,7 @@
 use crate::errors::{Error, Result};
 use crate::types::SequenceId;
 use std::collections::HashMap;
+use std::collections::hash_map::Entry;
 use std::time::{Duration, Instant};
 use tracing::trace;
 
@@ -119,9 +120,7 @@ impl FragmentedMessage {
                     }
                 }
             }
-        } else if let std::collections::hash_map::Entry::Vacant(e) =
-            self.pending_fragments.entry(fragment_id)
-        {
+        } else if let Entry::Vacant(e) = self.pending_fragments.entry(fragment_id) {
             e.insert(data);
         } else {
             trace!(

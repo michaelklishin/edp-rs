@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use std::fmt;
+use std::io;
 use std::result::Result as StdResult;
 use std::str::Utf8Error;
 use thiserror::Error;
@@ -171,7 +172,7 @@ pub enum EncodeError {
     #[error("too many atoms for DIST_HEADER: {count} (max 255)")]
     TooManyAtoms { count: usize },
     #[error("I/O error: {0}")]
-    IoError(#[from] std::io::Error),
+    IoError(#[from] io::Error),
     #[error("buffer overflow")]
     BufferOverflow,
 }

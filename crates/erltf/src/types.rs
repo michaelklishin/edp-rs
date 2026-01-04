@@ -16,7 +16,9 @@ use crate::errors::DecodeError;
 use crate::term::OwnedTerm;
 use bytes::Bytes;
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::{Arc, LazyLock};
 
@@ -286,8 +288,8 @@ impl PartialEq for ExternalPid {
 
 impl Eq for ExternalPid {}
 
-impl std::hash::Hash for ExternalPid {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for ExternalPid {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
         self.id.hash(state);
         self.serial.hash(state);
@@ -296,13 +298,13 @@ impl std::hash::Hash for ExternalPid {
 }
 
 impl PartialOrd for ExternalPid {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ExternalPid {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         (&self.node, self.id, self.serial, self.creation).cmp(&(
             &other.node,
             other.id,
@@ -476,8 +478,8 @@ impl PartialEq for ExternalPort {
 
 impl Eq for ExternalPort {}
 
-impl std::hash::Hash for ExternalPort {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for ExternalPort {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
         self.id.hash(state);
         self.creation.hash(state);
@@ -485,13 +487,13 @@ impl std::hash::Hash for ExternalPort {
 }
 
 impl PartialOrd for ExternalPort {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ExternalPort {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         (&self.node, self.id, self.creation).cmp(&(&other.node, other.id, other.creation))
     }
 }
@@ -560,8 +562,8 @@ impl PartialEq for ExternalReference {
 
 impl Eq for ExternalReference {}
 
-impl std::hash::Hash for ExternalReference {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+impl Hash for ExternalReference {
+    fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
         self.creation.hash(state);
         self.ids.hash(state);
@@ -569,13 +571,13 @@ impl std::hash::Hash for ExternalReference {
 }
 
 impl PartialOrd for ExternalReference {
-    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
 impl Ord for ExternalReference {
-    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         (&self.node, self.creation, &self.ids).cmp(&(&other.node, other.creation, &other.ids))
     }
 }

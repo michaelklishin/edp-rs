@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use bytes::{BufMut, BytesMut};
+use std::io;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 use tracing::trace;
 
@@ -69,7 +70,7 @@ impl MessageFramer {
         &self,
         writer: &mut W,
         data: &[u8],
-    ) -> std::io::Result<()> {
+    ) -> io::Result<()> {
         trace!(
             "Writing {} bytes in {:?} mode: {:02x?}",
             data.len(),
@@ -106,10 +107,7 @@ impl MessageDeframer {
         self.mode = mode;
     }
 
-    pub async fn read_framed<R: AsyncRead + Unpin>(
-        &self,
-        reader: &mut R,
-    ) -> std::io::Result<Vec<u8>> {
+    pub async fn read_framed<R: AsyncRead + Unpin>(&self, reader: &mut R) -> io::Result<Vec<u8>> {
         let len = match self.mode {
             FrameMode::Handshake => {
                 trace!("Reading message length (2 bytes, handshake mode)");
@@ -133,8 +131,8 @@ impl MessageDeframer {
         }
 
         if len > MAX_MESSAGE_SIZE {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
                 format!(
                     "Message too large: {} bytes (max: {})",
                     len, MAX_MESSAGE_SIZE
