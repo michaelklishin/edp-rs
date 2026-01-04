@@ -6,6 +6,13 @@ It supports encoding of Rust data structures into the ETF format as well as deco
 binary ETF-encoded data obtained from an Erlang (or Elixir, or another BEAM-based language) node
 into Rust data structures.
 
+
+## Optional Features
+
+ * `serde`: implements `serde::Serialize` and `serde::Deserialize` for `OwnedTerm`
+ * `elixir-interop`: adjusts encoding, decoding behavior to match Elixir conventions (e.g., `Option::None` becomes the `nil` atom instead of `undefined`)
+
+
 ## License
 
 This software is dual-licensed under the MIT License and the Apache License, Version 2.0.

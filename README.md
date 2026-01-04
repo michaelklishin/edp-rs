@@ -13,7 +13,7 @@ This project was heavily inspired by [a set of Go libraries](https://github.com/
  * Extensive test coverage, including unit, integration, and property-based tests
  * `crates/erltf` implements supports for [fragmented messages](https://www.erlang.org/docs/27/apps/erts/erl_ext_dist#distribution-header) (a.k.a. [`DFLAG_FRAGMENTS`](https://www.erlang.org/docs/27/apps/erts/erl_dist_protocol#DFLAG_FRAGMENTS)), a feature
    almost always skipped by other implementations due to its complexity and imperfect documentation
- * Serde support
+ * Serde support in `erltf` via a feature plus two Serde-specific crates (covered below)
  * `crates/edp_client` and `crates/edp_node` provide higher-level abstractions
  * (Some) Support for Elixir interop
 
@@ -67,6 +67,17 @@ including:
  * Elixir struct mapping to Rust structs with `derive(ElixirStruct)`
  * The `elixir-interop` feature that maps `Option::None` to `nil` instead of `undefined`
  * The `edp_elixir` crate provides Rust representations of common Elixir types (Range, MapSet, Date/Time, exceptions) and GenServer message helpers
+
+
+## Optional Features
+
+This family of crates provides the following optional Cargo features:
+
+| Crate | Feature | Description |
+|-------|---------|-------------|
+| `erltf` | `serde` | Implements `serde::Serialize` and `serde::Deserialize` for `OwnedTerm` |
+| `erltf` | `elixir-interop` | Adjusts encoding, decoding behavior to match Elixir conventions (e.g., `Option::None` becomes the `nil` atom instead of `undefined`) |
+| `erltf_serde` | `elixir-interop` | Same as `elixir-interop` in `erltf` but in the Serde extensions |
 
 
 ## Contributing
