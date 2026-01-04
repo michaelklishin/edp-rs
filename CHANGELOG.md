@@ -9,8 +9,6 @@
 
    GitHub discussion: [#22](https://github.com/michaelklishin/edp-rs/discussions/22)
 
- * `Option::None` deserialization now respects `elixir-interop` and deserializes to `Atom("nil")` instead of `Atom("undefined")`
-
 ### erltf_serde
 
  * New `elixir-interop` feature forwarded from `erltf`
