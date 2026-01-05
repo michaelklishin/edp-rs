@@ -34,7 +34,7 @@ bytes = "1.11"
 nom = "8.0"
 
 # Async runtime
-tokio = { version = "1.42", default-features = false, features = ["full"] }
+tokio = { version = "1.49", default-features = false, features = ["full"] }
 
 # Cryptography
 md-5 = "0.10"
