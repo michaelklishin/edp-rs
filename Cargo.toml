@@ -53,7 +53,7 @@ dashmap = "6.1"
 bitflags = "2.6"
 
 # Testing
-proptest = "1.5"
+proptest = "1.10"
 criterion = "0.8"
 
 [profile.release]
