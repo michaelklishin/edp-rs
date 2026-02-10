@@ -79,13 +79,9 @@ impl TestNode {
             .output()
             .expect("Failed to compile test_node.erl");
 
-        let hostname = Command::new("hostname")
-            .arg("-s")
-            .output()
-            .ok()
-            .and_then(|o| String::from_utf8(o.stdout).ok())
-            .map(|s| s.trim().to_string())
-            .unwrap_or_else(|| "localhost".to_string());
+        let hostname = hostname::get()
+            .map(|h| h.to_string_lossy().to_string())
+            .unwrap_or_else(|_| "localhost".to_string());
 
         let node_name_full = format!("{}@{}", short_name, &hostname);
         let start_command = format!("test_node:start('{}', '{}')", short_name, &hostname);

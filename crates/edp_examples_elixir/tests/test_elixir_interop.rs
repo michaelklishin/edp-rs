@@ -19,6 +19,7 @@ use erltf::types::Atom;
 use erltf_serde::{from_term, to_term};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
+use std::time::Duration;
 
 const COOKIE: &str = "test_cookie";
 
@@ -70,6 +71,21 @@ async fn setup_client(test_name: &str, elixir_node: &str) -> Result<Node> {
         DEFAULT_CONNECT_RETRY_DELAY,
     )
     .await?;
+
+    // Poll until the .exs module is compiled and loaded
+    let probe = vec![OwnedTerm::Atom(Atom::new("ping"))];
+    for _ in 0..DEFAULT_CONNECT_RETRY_ATTEMPTS {
+        if let Ok(OwnedTerm::Atom(a)) = node
+            .rpc_call(elixir_node, "Elixir.TestEchoServer", "echo", probe.clone())
+            .await
+        {
+            if a.as_str() == "ping" {
+                return Ok(node);
+            }
+        }
+        tokio::time::sleep(Duration::from_millis(500)).await;
+    }
+
     Ok(node)
 }
 
