@@ -20,6 +20,10 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 struct LoggerHandler {
     id: OwnedTerm,
     events: Arc<Mutex<Vec<OwnedTerm>>>,
@@ -122,8 +126,8 @@ impl GenEventHandler for RemovingHandler {
 
 #[tokio::test]
 async fn test_gen_event_notify() {
-    let mut node = Node::new("test_genevent@localhost", "secret");
-    node.start(5580).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genevent"), "secret");
+    node.start(0).await.unwrap();
 
     let events = Arc::new(Mutex::new(Vec::new()));
     let handler = LoggerHandler::new(OwnedTerm::Atom(Atom::new("logger")), events.clone());
@@ -151,8 +155,8 @@ async fn test_gen_event_notify() {
 
 #[tokio::test]
 async fn test_gen_event_multiple_handlers() {
-    let mut node = Node::new("test_genevent_multi@localhost", "secret");
-    node.start(5581).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genevent_multi"), "secret");
+    node.start(0).await.unwrap();
 
     let events1 = Arc::new(Mutex::new(Vec::new()));
     let events2 = Arc::new(Mutex::new(Vec::new()));
@@ -195,8 +199,8 @@ async fn test_gen_event_multiple_handlers() {
 
 #[tokio::test]
 async fn test_gen_event_handler_removal() {
-    let mut node = Node::new("test_genevent_remove@localhost", "secret");
-    node.start(5582).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genevent_remove"), "secret");
+    node.start(0).await.unwrap();
 
     let handler = RemovingHandler::new(OwnedTerm::Atom(Atom::new("removing")), "stop".to_string());
 
@@ -230,8 +234,8 @@ async fn test_gen_event_handler_removal() {
 
 #[tokio::test]
 async fn test_gen_event_which_handlers() {
-    let mut node = Node::new("test_genevent_which@localhost", "secret");
-    node.start(5583).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genevent_which"), "secret");
+    node.start(0).await.unwrap();
 
     let events1 = Arc::new(Mutex::new(Vec::new()));
     let events2 = Arc::new(Mutex::new(Vec::new()));
@@ -256,8 +260,8 @@ async fn test_gen_event_which_handlers() {
 
 #[tokio::test]
 async fn test_gen_event_delete_handler() {
-    let mut node = Node::new("test_genevent_delete@localhost", "secret");
-    node.start(5584).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genevent_delete"), "secret");
+    node.start(0).await.unwrap();
 
     let events = Arc::new(Mutex::new(Vec::new()));
     let handler = LoggerHandler::new(OwnedTerm::Atom(Atom::new("logger")), events.clone());

@@ -16,6 +16,10 @@ use edp_node::{Message, Node, Process};
 use erltf::OwnedTerm;
 use erltf::types::Atom;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 struct TestProcess {
     received: Vec<OwnedTerm>,
 }
@@ -43,8 +47,8 @@ impl Process for TestProcess {
 
 #[tokio::test]
 async fn test_spawn_and_register_process() {
-    let mut node = Node::new("test@localhost", "secret");
-    node.start(5570).await.unwrap();
+    let mut node = Node::new(test_node_name("test"), "secret");
+    node.start(0).await.unwrap();
 
     let process = TestProcess::new();
     let pid = node.spawn(process).await.unwrap();
@@ -59,8 +63,8 @@ async fn test_spawn_and_register_process() {
 
 #[tokio::test]
 async fn test_unregister_process() {
-    let mut node = Node::new("test2@localhost", "secret");
-    node.start(5571).await.unwrap();
+    let mut node = Node::new(test_node_name("test2"), "secret");
+    node.start(0).await.unwrap();
 
     let process = TestProcess::new();
     let pid = node.spawn(process).await.unwrap();
@@ -75,8 +79,8 @@ async fn test_unregister_process() {
 
 #[tokio::test]
 async fn test_duplicate_registration_fails() {
-    let mut node = Node::new("test3@localhost", "secret");
-    node.start(5572).await.unwrap();
+    let mut node = Node::new(test_node_name("test3"), "secret");
+    node.start(0).await.unwrap();
 
     let process1 = TestProcess::new();
     let pid1 = node.spawn(process1).await.unwrap();
@@ -90,8 +94,8 @@ async fn test_duplicate_registration_fails() {
 
 #[tokio::test]
 async fn test_list_registered_names() {
-    let mut node = Node::new("test4@localhost", "secret");
-    node.start(5573).await.unwrap();
+    let mut node = Node::new(test_node_name("test4"), "secret");
+    node.start(0).await.unwrap();
 
     let process1 = TestProcess::new();
     let pid1 = node.spawn(process1).await.unwrap();
@@ -113,8 +117,8 @@ async fn test_list_registered_names() {
 
 #[tokio::test]
 async fn test_process_count() {
-    let mut node = Node::new("test5@localhost", "secret");
-    node.start(5574).await.unwrap();
+    let mut node = Node::new(test_node_name("test5"), "secret");
+    node.start(0).await.unwrap();
 
     assert_eq!(node.process_count().await, 0);
 

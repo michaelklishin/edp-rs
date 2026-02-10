@@ -14,27 +14,32 @@
 
 use edp_node::Node;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 //
 // Reference Creation Tests
 //
 
 #[tokio::test]
 async fn test_rpc_reference_creation() {
-    let mut node = Node::new("rpc_test1@localhost", "secret");
-    node.start(5580).await.unwrap();
+    let name = test_node_name("rpc_test1");
+    let mut node = Node::new(&name, "secret");
+    node.start(0).await.unwrap();
 
     let ref1 = node.make_reference();
     let ref2 = node.make_reference();
 
     assert_ne!(ref1, ref2);
-    assert_eq!(ref1.node.as_str(), "rpc_test1@localhost");
-    assert_eq!(ref2.node.as_str(), "rpc_test1@localhost");
+    assert_eq!(ref1.node.as_str(), name);
+    assert_eq!(ref2.node.as_str(), name);
 }
 
 #[tokio::test]
 async fn test_rpc_reference_uniqueness() {
-    let mut node = Node::new("rpc_test1b@localhost", "secret");
-    node.start(5580).await.unwrap();
+    let mut node = Node::new(test_node_name("rpc_test1b"), "secret");
+    node.start(0).await.unwrap();
 
     let mut refs = Vec::new();
     for _ in 0..100 {
@@ -58,8 +63,8 @@ async fn test_rpc_reference_uniqueness() {
 
 #[tokio::test]
 async fn test_rpc_to_nonexistent_node() {
-    let mut node = Node::new("rpc_test2@localhost", "secret");
-    node.start(5581).await.unwrap();
+    let mut node = Node::new(test_node_name("rpc_test2"), "secret");
+    node.start(0).await.unwrap();
 
     let result = node
         .rpc_call("nonexistent@localhost", "erlang", "node", vec![])
@@ -70,8 +75,8 @@ async fn test_rpc_to_nonexistent_node() {
 
 #[tokio::test]
 async fn test_rpc_requires_connection() {
-    let mut node = Node::new("rpc_test3@localhost", "secret");
-    node.start(5582).await.unwrap();
+    let mut node = Node::new(test_node_name("rpc_test3"), "secret");
+    node.start(0).await.unwrap();
 
     let result = node
         .rpc_call("not_connected@localhost", "erlang", "node", vec![])
@@ -86,16 +91,17 @@ async fn test_rpc_requires_connection() {
 
 #[tokio::test]
 async fn test_rpc_node_name_and_cookie_accessors() {
-    let node = Node::new("rpc_test4@localhost", "secret_cookie");
+    let name = test_node_name("rpc_test4");
+    let node = Node::new(&name, "secret_cookie");
 
-    assert_eq!(node.name().as_str(), "rpc_test4@localhost");
+    assert_eq!(node.name().as_str(), name);
     assert_eq!(node.cookie(), "secret_cookie");
 }
 
 #[tokio::test]
 async fn test_rpc_creation_increments() {
-    let mut node = Node::new("rpc_test5@localhost", "secret");
-    node.start(5583).await.unwrap();
+    let mut node = Node::new(test_node_name("rpc_test5"), "secret");
+    node.start(0).await.unwrap();
 
     let initial_creation = node.creation();
     assert!(initial_creation > 0);

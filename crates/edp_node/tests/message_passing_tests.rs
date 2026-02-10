@@ -18,6 +18,10 @@ use erltf::types::Atom;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 struct CollectorProcess {
     messages: Arc<Mutex<Vec<OwnedTerm>>>,
 }
@@ -39,8 +43,8 @@ impl Process for CollectorProcess {
 
 #[tokio::test]
 async fn test_local_message_passing() {
-    let mut node = Node::new("test@localhost", "secret");
-    node.start(5555).await.unwrap();
+    let mut node = Node::new(test_node_name("test"), "secret");
+    node.start(0).await.unwrap();
 
     let messages = Arc::new(Mutex::new(Vec::new()));
     let collector = CollectorProcess::new(messages.clone());
@@ -62,8 +66,8 @@ async fn test_local_message_passing() {
 
 #[tokio::test]
 async fn test_registered_name_message_passing() {
-    let mut node = Node::new("test2@localhost", "secret");
-    node.start(5556).await.unwrap();
+    let mut node = Node::new(test_node_name("test2"), "secret");
+    node.start(0).await.unwrap();
 
     let messages = Arc::new(Mutex::new(Vec::new()));
     let collector = CollectorProcess::new(messages.clone());
@@ -84,12 +88,13 @@ async fn test_registered_name_message_passing() {
 
 #[tokio::test]
 async fn test_message_to_nonexistent_process() {
-    let mut node = Node::new("test3@localhost", "secret");
-    node.start(5557).await.unwrap();
+    let name = test_node_name("test3");
+    let mut node = Node::new(&name, "secret");
+    node.start(0).await.unwrap();
 
     let result = node
         .send(
-            &erltf::types::ExternalPid::new(Atom::new("test3@localhost"), 99999, 0, 1),
+            &erltf::types::ExternalPid::new(Atom::new(&name), 99999, 0, 1),
             OwnedTerm::Atom(Atom::new("test")),
         )
         .await;

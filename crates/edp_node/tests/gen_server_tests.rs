@@ -18,6 +18,10 @@ use erltf::types::{Atom, ExternalPid};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 struct CounterServer {
     count: i64,
     casts_received: Arc<Mutex<Vec<OwnedTerm>>>,
@@ -69,8 +73,8 @@ impl GenServer for CounterServer {
 
 #[tokio::test]
 async fn test_genserver_call() {
-    let mut node = Node::new("test_genserver@localhost", "secret");
-    node.start(5558).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genserver"), "secret");
+    node.start(0).await.unwrap();
 
     let casts = Arc::new(Mutex::new(Vec::new()));
     let server = CounterServer::new(casts.clone());
@@ -86,8 +90,8 @@ async fn test_genserver_call() {
 
 #[tokio::test]
 async fn test_genserver_cast() {
-    let mut node = Node::new("test_genserver_cast@localhost", "secret");
-    node.start(5559).await.unwrap();
+    let mut node = Node::new(test_node_name("test_genserver_cast"), "secret");
+    node.start(0).await.unwrap();
 
     let casts = Arc::new(Mutex::new(Vec::new()));
     let server = CounterServer::new(casts.clone());

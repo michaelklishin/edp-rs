@@ -18,6 +18,10 @@ use erltf::types::{ExternalPid, ExternalReference};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+fn test_node_name(base: &str) -> String {
+    format!("{}_{}@localhost", base, std::process::id())
+}
+
 #[derive(Clone)]
 struct LinkTestProcess {
     exit_received: Arc<Mutex<Vec<(ExternalPid, OwnedTerm)>>>,
@@ -65,8 +69,8 @@ impl Process for LinkTestProcess {
 
 #[tokio::test]
 async fn test_link_tracking() {
-    let mut node = Node::new("test_link@localhost", "secret");
-    node.start(5560).await.unwrap();
+    let mut node = Node::new(test_node_name("test_link"), "secret");
+    node.start(0).await.unwrap();
 
     let exits = Arc::new(Mutex::new(Vec::new()));
     let monitor_exits = Arc::new(Mutex::new(Vec::new()));
@@ -84,8 +88,8 @@ async fn test_link_tracking() {
 
 #[tokio::test]
 async fn test_unlink() {
-    let mut node = Node::new("test_unlink@localhost", "secret");
-    node.start(5561).await.unwrap();
+    let mut node = Node::new(test_node_name("test_unlink"), "secret");
+    node.start(0).await.unwrap();
 
     let exits = Arc::new(Mutex::new(Vec::new()));
     let monitor_exits = Arc::new(Mutex::new(Vec::new()));
@@ -108,8 +112,8 @@ async fn test_unlink() {
 
 #[tokio::test]
 async fn test_monitor_tracking() {
-    let mut node = Node::new("test_monitor@localhost", "secret");
-    node.start(5562).await.unwrap();
+    let mut node = Node::new(test_node_name("test_monitor"), "secret");
+    node.start(0).await.unwrap();
 
     let exits = Arc::new(Mutex::new(Vec::new()));
     let monitor_exits = Arc::new(Mutex::new(Vec::new()));
@@ -129,8 +133,8 @@ async fn test_monitor_tracking() {
 
 #[tokio::test]
 async fn test_demonitor() {
-    let mut node = Node::new("test_demonitor@localhost", "secret");
-    node.start(5563).await.unwrap();
+    let mut node = Node::new(test_node_name("test_demonitor"), "secret");
+    node.start(0).await.unwrap();
 
     let exits = Arc::new(Mutex::new(Vec::new()));
     let monitor_exits = Arc::new(Mutex::new(Vec::new()));
