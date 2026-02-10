@@ -12,11 +12,18 @@
 
 ### edp_client
 
-(no changes yet)
+#### Enhancements
+
+ * `EpmdLookup` and `ConnectionRefused` errors are now considered recoverable by `Error::is_recoverable`
 
 ### edp_node
 
-(no changes yet)
+#### Enhancements
+
+ * `Node::connect_with_retries` is a new function for retry-based connection with backoff on recoverable errors
+ * `Node::connect_to_with_retries` and `Node::connect_to_hidden_with_retries` are new convenience constructors
+ * `Error::is_recoverable` is a new function that delegates to the underlying client error
+ * Two new constants: `DEFAULT_CONNECT_RETRY_ATTEMPTS` (10) and `DEFAULT_CONNECT_RETRY_DELAY` (500 ms)
 
 
 ## v0.16.0 (Jan 3, 2026)

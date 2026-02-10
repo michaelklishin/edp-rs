@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use anyhow::Result;
-use edp_node::Node;
+use edp_node::{Node, DEFAULT_CONNECT_RETRY_ATTEMPTS, DEFAULT_CONNECT_RETRY_DELAY};
 use erltf::OwnedTerm;
 use std::env;
 use std::fs;
@@ -21,10 +21,8 @@ use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::thread;
 use std::time::Duration;
-use tokio::time::sleep;
 
 const DEFAULT_COOKIE: &str = "monster";
-const NODE_START_DELAY_MS: u64 = 500;
 const VERIFICATION_ATTEMPTS: u32 = 10;
 const VERIFICATION_DELAY_MS: u64 = 100;
 const STARTUP_RETRY_ATTEMPTS: u32 = 3;
@@ -158,14 +156,18 @@ pub struct TestContext {
 impl TestContext {
     pub async fn new(test_name: &str) -> Result<Self> {
         let test_node = TestNode::start(&format!("erl_test_{}", test_name))?;
-        sleep(Duration::from_millis(NODE_START_DELAY_MS)).await;
 
         let target_node_name = test_node.name().to_string();
         let client_node_name = test_node.client_node_name(&format!("rust_test_{}", test_name));
 
         let mut node = Node::new(client_node_name, DEFAULT_COOKIE.to_string());
         node.start(0).await?;
-        node.connect(&target_node_name).await?;
+        node.connect_with_retries(
+            &target_node_name,
+            DEFAULT_CONNECT_RETRY_ATTEMPTS,
+            DEFAULT_CONNECT_RETRY_DELAY,
+        )
+        .await?;
 
         Ok(TestContext {
             node,

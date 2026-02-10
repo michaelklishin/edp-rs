@@ -26,8 +26,11 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::time::Duration;
 use tokio::sync::{Mutex, oneshot};
+use tokio::time::sleep;
 
 pub const DEFAULT_RPC_TIMEOUT: Duration = Duration::from_secs(10);
+pub const DEFAULT_CONNECT_RETRY_ATTEMPTS: u32 = 10;
+pub const DEFAULT_CONNECT_RETRY_DELAY: Duration = Duration::from_millis(500);
 
 pub struct Node {
     name: Atom,
@@ -68,6 +71,42 @@ impl Node {
         Self::connect_to_with_hidden(name, cookie, remote_node, true).await
     }
 
+    pub async fn connect_to_with_retries(
+        name: impl Into<String>,
+        cookie: impl Into<String>,
+        remote_node: impl Into<String>,
+        max_attempts: u32,
+        retry_delay: Duration,
+    ) -> Result<Self> {
+        Self::connect_to_with_retries_hidden(
+            name,
+            cookie,
+            remote_node,
+            max_attempts,
+            retry_delay,
+            false,
+        )
+        .await
+    }
+
+    pub async fn connect_to_hidden_with_retries(
+        name: impl Into<String>,
+        cookie: impl Into<String>,
+        remote_node: impl Into<String>,
+        max_attempts: u32,
+        retry_delay: Duration,
+    ) -> Result<Self> {
+        Self::connect_to_with_retries_hidden(
+            name,
+            cookie,
+            remote_node,
+            max_attempts,
+            retry_delay,
+            true,
+        )
+        .await
+    }
+
     async fn connect_to_with_hidden(
         name: impl Into<String>,
         cookie: impl Into<String>,
@@ -77,6 +116,21 @@ impl Node {
         let mut node = Self::with_hidden(name, cookie, hidden);
         node.start(0).await?;
         node.connect(remote_node).await?;
+        Ok(node)
+    }
+
+    async fn connect_to_with_retries_hidden(
+        name: impl Into<String>,
+        cookie: impl Into<String>,
+        remote_node: impl Into<String>,
+        max_attempts: u32,
+        retry_delay: Duration,
+        hidden: bool,
+    ) -> Result<Self> {
+        let mut node = Self::with_hidden(name, cookie, hidden);
+        node.start(0).await?;
+        node.connect_with_retries(remote_node, max_attempts, retry_delay)
+            .await?;
         Ok(node)
     }
 
@@ -165,6 +219,38 @@ impl Node {
 
         tracing::debug!("Connected to {}", remote_node);
         Ok(())
+    }
+
+    pub async fn connect_with_retries(
+        &self,
+        remote_node: impl Into<String>,
+        max_attempts: u32,
+        retry_delay: Duration,
+    ) -> Result<()> {
+        let remote_node = remote_node.into();
+        let mut last_err = None;
+
+        for attempt in 1..=max_attempts {
+            match self.connect(&remote_node).await {
+                Ok(()) => return Ok(()),
+                Err(e) if e.is_recoverable() => {
+                    tracing::debug!(
+                        "Connection attempt {}/{} to {} failed (recoverable): {}",
+                        attempt,
+                        max_attempts,
+                        remote_node,
+                        e
+                    );
+                    last_err = Some(e);
+                    if attempt < max_attempts {
+                        sleep(retry_delay).await;
+                    }
+                }
+                Err(e) => return Err(e),
+            }
+        }
+
+        Err(last_err.expect("at least one attempt must have been made"))
     }
 
     fn spawn_receiver_task(

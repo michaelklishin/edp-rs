@@ -71,3 +71,12 @@ pub enum Error {
     #[error("RPC cancelled")]
     RpcCancelled,
 }
+
+impl Error {
+    pub fn is_recoverable(&self) -> bool {
+        match self {
+            Error::Client(e) => e.is_recoverable(),
+            _ => false,
+        }
+    }
+}

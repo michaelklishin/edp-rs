@@ -107,7 +107,11 @@ impl Error {
     pub fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            Error::Io(_) | Error::Timeout(_) | Error::UnexpectedEof { .. }
+            Error::Io(_)
+                | Error::Timeout(_)
+                | Error::UnexpectedEof { .. }
+                | Error::EpmdLookup { .. }
+                | Error::ConnectionRefused { .. }
         )
     }
 

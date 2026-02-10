@@ -13,14 +13,12 @@
 // limitations under the License.
 
 use anyhow::Result;
-use edp_node::Node;
+use edp_node::{DEFAULT_CONNECT_RETRY_ATTEMPTS, DEFAULT_CONNECT_RETRY_DELAY, Node};
 use erltf::OwnedTerm;
 use erltf::types::Atom;
 use erltf_serde::{from_term, to_term};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::thread;
-use std::time::Duration;
 
 const COOKIE: &str = "test_cookie";
 
@@ -42,8 +40,6 @@ impl ElixirNode {
             .stdout(Stdio::null())
             .stderr(Stdio::null())
             .spawn()?;
-
-        thread::sleep(Duration::from_millis(1000));
 
         let hostname = hostname::get()?.to_string_lossy().to_string();
         let name = format!("{}@{}", short_name, hostname);
@@ -68,7 +64,12 @@ async fn setup_client(test_name: &str, elixir_node: &str) -> Result<Node> {
 
     let mut node = Node::new(client_name, COOKIE.to_string());
     node.start(0).await?;
-    node.connect(elixir_node).await?;
+    node.connect_with_retries(
+        elixir_node,
+        DEFAULT_CONNECT_RETRY_ATTEMPTS,
+        DEFAULT_CONNECT_RETRY_DELAY,
+    )
+    .await?;
     Ok(node)
 }
 
