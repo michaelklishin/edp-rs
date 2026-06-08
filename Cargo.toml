@@ -50,7 +50,7 @@ anyhow = "1.0"
 clap = "4.6"
 tabled = "0.20"
 dashmap = "6.2"
-bitflags = "2.11"
+bitflags = "2.13"
 
 # Testing
 proptest = "1.11"
