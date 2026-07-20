@@ -20,7 +20,7 @@ edp_node = { version = "0.17.0", path = "crates/edp_node" }
 # Proc-macro support
 proc-macro2 = "1.0"
 quote = "1.0"
-syn = { version = "2.0", features = ["full", "parsing", "extra-traits"] }
+syn = { version = "3.0", features = ["full", "parsing", "extra-traits"] }
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
